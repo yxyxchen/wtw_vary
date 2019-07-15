@@ -66,4 +66,88 @@ loadAllData = function() {
   
 } 
 
+loadExpPara = function(paras, dirName){
+  # number of paras 
+  nE = length(paras) + 1
+  # number of files
+  fileNames = list.files(path= dirName, pattern=("*_summary.txt"))
+  library("gtools")
+  fileNames = mixedsort(sort(fileNames))
+  n = length(fileNames) 
+  sprintf("load %d files", n)
+  
+  # initialize the outout variable 
+  expPara = matrix(NA, n, nE * 4)
+  idList = vector(length = n)
+  # loop over files
+  for(i in 1 : n){
+    fileName = fileNames[[i]]
+    address = sprintf("%s/%s", dirName, fileName)
+    junk = read.csv(address, header = F)
+    idIndexs = str_locate(fileName, "s[0-9]+")
+    idList[i] = as.double(substr(fileName, idIndexs[1]+1, idIndexs[2]))
+    # delete the lp__ in the old version
+    if(nrow(junk) > nE){
+      junk = junk[1:nE,]
+    }
+    expPara[i, 1:nE] = junk[,1]
+    expPara[i, (nE + 1) : (2 * nE)] = junk[,3]
+    expPara[i, (2*nE + 1) : (3 * nE)] = junk[,9]
+    expPara[i, (3 * nE + 1) : (4 * nE)] = junk[,10]
+  }
+  # transfer expPara to data.frame
+  expPara = data.frame(expPara)
+  junk = c(paras, "LL_all")
+  colnames(expPara) = c(junk, paste0(junk, "SD"), paste0(junk, "Effe"), paste0(junk, "Rhat"))
+  expPara$id = idList
+  return(expPara)
+}
+
+# I also need to load 2.5% and 97.5%
+loadCVPara = function(paras, dirName, pattern){
+  # number of paras 
+  nE = length(paras) + 1
+  # number of files
+  fileNames = list.files(path= dirName, pattern= pattern)
+  library("gtools")
+  fileNames = mixedsort(sort(fileNames))
+  n = length(fileNames) 
+  sprintf("load %d files", n)
+  
+  # initialize the outout variable 
+  expPara = matrix(NA, n, nE * 6)
+  idList = vector(length = n)
+  fList = vector(length = n)
+  sList = vector(length = n)
+  # loop over files
+  for(i in 1 : n){
+    fileName = fileNames[[i]]
+    address = sprintf("%s/%s", dirName, fileName)
+    junk = read.csv(address, header = F)
+    sIndexs = str_locate(fileName, "s[0-9]{1,2}")
+    sList[i] = as.double(substr(fileName, sIndexs[1]+1, sIndexs[2]))
+    fIndexs = str_locate(fileName, "f[0-9]{1,2}")
+    fList[i] = as.double(substr(fileName, fIndexs[1]+1, fIndexs[2]))
+    idList[i] = i
+    # delete the lp__ in the old version
+    if(nrow(junk) > nE){
+      junk = junk[1:nE,]
+    }
+    expPara[i, 1:nE] = junk[,1]
+    expPara[i, (nE + 1) : (2 * nE)] = junk[,3]
+    expPara[i, (2*nE + 1) : (3 * nE)] = junk[,9]
+    expPara[i, (3 * nE + 1) : (4 * nE)] = junk[,10]
+    expPara[i, (4*nE + 1) : (5 * nE)] = junk[,4]
+    expPara[i, (5 * nE + 1) : (6 * nE)] = junk[,8]
+  }
+  # transfer expPara to data.frame
+  expPara = data.frame(expPara)
+  junk = c(paras, "LL_all")
+  colnames(expPara) = c(junk, paste0(junk, "SD"), paste0(junk, "Effe"), paste0(junk, "Rhat"),
+                        paste0(junk, "2.5"),paste0(junk, "97.5"))
+  expPara$id = idList
+  expPara$sIdx = sList
+  expPara$fIdx = fList
+  return(expPara)
+}
 
