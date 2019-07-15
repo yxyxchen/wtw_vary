@@ -1,16 +1,22 @@
 library("stringr")
 getParas = function(modelName){
   if(modelName %in% c("para4", "curiosityTrialSp")) paras = c("phi", "tau", "gamma", "zeroPoint")
-  else if(modelName  %in% c("PR", "PR_5")) paras = c("phi", "phiP", "tau", "gamma", "zeroPoint")
+  else if(modelName  %in% c("PR", "PRNC", "PRbs", "PRbsNC", "PRbsNCdb", "PRbsdb")) paras = c("phi", "phiP", "tau", "gamma", "zeroPoint")
+  else if(modelName %in% c(("MVT"))) paras = c("phi", "phiP", "tau", "reRateIni", "slope")
+  else if(modelName  %in% c("hyper")) paras = c("phi", "phiP", "tau", "k", "zeroPoint")
   else if(modelName == "PR_cost") paras = c("phi", "phiP", "tau", "gamma", "zeroPoint", "cost")
-  else if(modelName == "fullModel") paras = c("phi", "tau", "gamma", "QwaitIni")
+  else if(modelName %in% c("uniPrior", "uniPriorNC", "uniPriordb", "uniPriordbNC")) paras = c("phi", "phiP", "tau", "gamma", "QwaitIni")
   else if(modelName == "risk") paras = c("phi", "tau", "gamma", "utiCurve")
   else if(modelName == "baseline") paras = c("waitRate")
+  else if(modelName %in% c("Rlearn", "Rlearndb")) paras = c("phi", "phiP", "tau", "zeroPoint")
+  else if(modelName %in% c("RlearnL", "RlearnLdb")) paras = c("phi", "phiP", "tau", "zeroPoint", "beta", "betaP")
+  else if(modelName %in% c("reduce_gamma")) paras = c("phi", "phiP", "tau", "zeroPoint")
   else return("wrong model name")
   return(paras)
 }
 
 getUseID = function(expPara, paras){
+  paras = c(paras, "LL_all")
   idList = expPara$id
   RhatCols = which(str_detect(colnames(expPara), "hat"))[1 : length(paras)]
   EffeCols = which(str_detect(colnames(expPara), "Effe"))[1 : length(paras)]

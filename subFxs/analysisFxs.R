@@ -1,5 +1,6 @@
 # this script contains helper analysis functions 
 library(coin)
+load("wtwSettings.RData")
 # check the distribution of scheduled delays
 # ...as measured in number of key presses (for the instrumental version of the task)
 scheduledDelays <- function(blockData,label) {
@@ -19,20 +20,18 @@ scheduledDelays <- function(blockData,label) {
 trialPlots <- function(thisTrialData,label = " ") {
   # change the trialNum to accumulated trialNum if needed
   if(length(unique(thisTrialData$blockNum)) > 1){
-    nTrial1 = sum(thisTrialData$blockNum == 1)
-    nTrial1n2 = sum(thisTrialData$blockNum == 1 | thisTrialData$blockNum == 2)
+    nBlock = length(unique(thisTrialData$blockNum))
+    nTrials = sapply(1 : nBlock, function(i) sum(thisTrialData$blockNum %in% (1:i)))
   }
   # values to be plotted
-  rwdIdx = thisTrialData$trialEarnings > loseValue
-  quitIdx = thisTrialData$trialEarnings <= loseValue
+  rwdIdx = thisTrialData$trialEarnings != loseValue
+  quitIdx = thisTrialData$trialEarnings == loseValue
   rwdTrialNo = thisTrialData$trialNum[rwdIdx]
   quitTrialNo = thisTrialData$trialNum[quitIdx]
   rwdSchedDelay = thisTrialData$scheduledWait[rwdIdx]
   quitSchedDelay = thisTrialData$scheduledWait[quitIdx]
   waitDuration = thisTrialData$timeWaited
   quitTime = waitDuration[quitIdx]
-  # other parameters
-  nTrials = length(thisTrialData$trialEarnings)
   # prepare plotData
   plotData = data.frame("trialNum" = c(rwdTrialNo, quitTrialNo, quitTrialNo),
                         "trialDuration" = c(rwdSchedDelay, quitTime, quitSchedDelay),
@@ -48,7 +47,7 @@ trialPlots <- function(thisTrialData,label = " ") {
     xlab('Trial') + ylab('Waiting duration (s)') + ggtitle(label) + myTheme
   # add block lines if we have multiple blocks 
   if(length(unique(thisTrialData$blockNum)) > 1){
-    p = p + geom_vline(xintercept = c(nTrial1,nTrial1n2),  linetype='dashed',
+    p = p + geom_vline(xintercept = nTrials,  linetype='dashed',
                    color = "grey", size = 1)
   }
   print(p)
@@ -60,7 +59,7 @@ trialPlots <- function(thisTrialData,label = " ") {
 kmsc <- function(thisTrialData,tMax,label='',plotKMSC=FALSE,grid=0) {
   library(survival)
   waitDuration = thisTrialData$timeWaited
-  quitIdx = (thisTrialData$trialEarnings == 0)
+  quitIdx = (thisTrialData$trialEarnings == loseValue)
   # for rewarded trials, base the duration on the reward delivery time (not the subsequent response)
   waitDuration[!quitIdx] <- thisTrialData$scheduledWait[!quitIdx]
   # fit the survival function
@@ -114,19 +113,25 @@ truncateTrials = function(data, startTidx, endTidx){
   nVar = length(data)
   varNames = names(data)
   outputs = vector(mode = "list", length = nVar)
+  anyMatrix = F
   for(i in 1 : nVar){
     junk = data[[varNames[i]]]
-    if(is.matrix(junk)) outputs[[i]] = junk[, startTidx:endTidx]
-    else outputs[[i]] = junk[startTidx:endTidx]
+    if(is.matrix(junk)){
+      outputs[[i]] = junk[, startTidx:endTidx]
+      anyMatrix  = T 
+    }else{
+      outputs[[i]] = junk[startTidx:endTidx]
+    }
   }
   names(outputs) = varNames
+  if(!anyMatrix )   outputs = as.data.frame(outputs)
   return(outputs)
 }
 
 # willingness to wait time-series
 wtwTS <- function(thisTrialData, tGrid, wtwCeiling, label = "", plotWTW = F) {
   trialWTW = numeric(length = length(thisTrialData$trialEarnings)) # initialize the per-trial estimate of WTW
-  quitIdx = thisTrialData$trialEarnings == 0
+  quitIdx = thisTrialData$trialEarnings == loseValue
   # use either the rewardTime (for reward trials) or time waited (for quit trials)
   #   (not using time waited for reward trials because this includes the post-reward RT)
   timeWaited = thisTrialData$scheduledWait # use rewardtime make more sense but sometime nan
@@ -260,10 +265,10 @@ getPartCorrelation = function(data){
 block2session = function(tempt){
   nBlock = length(unique(tempt$blockNum))
   nTrials = sapply(1:nBlock, function(i) sum(tempt$blockNum == i))
-  thisTrialData = within(tempt, {trialNum = trialNum + rep(c(0, cumsum(nTrials)[1:nBlock - 1]), time = nTrials);
-  sellTime = sellTime + rep((1:nBlock-1) * blockSecs, time = nTrials);
-  trialStartTime = trialStartTime + rep((1:nBlock-1) * blockSecs, time = nTrials);
-  totalEarnings = totalEarnings +  rep(c(0, totalEarnings[cumsum(nTrials)[1:nBlock - 1]]),
+  thisTrialData = within(tempt, {trialNum = trialNum + rep(c(0, cumsum(nTrials)[1:(nBlock - 1)]), time = nTrials);
+  sellTime = sellTime + rep((1:nBlock - 1) * blockSecs, time = nTrials);
+  trialStartTime = trialStartTime + rep((1:nBlock - 1) * blockSecs, time = nTrials);
+  totalEarnings = totalEarnings +  rep(c(0, totalEarnings[cumsum(nTrials)[1:(nBlock - 1)]]),
                                        time = nTrials)
   })
   return(thisTrialData)
@@ -345,20 +350,37 @@ stand = function(input){
   return(output)
 }
 
-lastTrunc = function(thisTrialData){
-  excludedTrials = lapply(1 : nBlock, function(i)
-    which(thisTrialData$trialStartTime > (blockSecs - tMaxs[i]) &
-            (thisTrialData$blockNum == i)))
-  includeStart = which(thisTrialData$trialNum == 1)
-  includeEnd = sapply(1 : nBlock, function(i){
-    if(length(excludedTrials[[i]] > 0)){
-      min(excludedTrials[[i]])-1
-    }else{
-      max(which(thisTrialData$blockNum ==i))  
-    }
+movAve = function(x, windowSize){
+  if(windowSize %% 2 == 0){
+    print("windowSize should be an even number")
+  }
+  halfWin = (windowSize - 1) / 2
+  y = sapply(1 : length(x), function(i){
+    startIdx = max(1, i - halfWin)
+    endIdx = min(length(x), i + halfWin)
+    mean(x[startIdx:endIdx])
   })
-  tempt = lapply(1 : nBlock, function(i)
-    truncateTrials(thisTrialData, includeStart[i], includeEnd[i]))
-  thisTrialData = do.call("rbind", tempt)
-  
+  return(y)
 }
+
+# lastTrunc = function(thisTrialData){
+#   cond = unique(thisTrialData$condition)
+#   cIdx = ifelse(cond == "HP", 1, 2)
+#   excludedTrials = lapply(1 : nBlock, function(i)
+#     which(thisTrialData$trialStartTime > (blockSecs - tMaxs[cIdx]) &
+#             (thisTrialData$blockNum == i)))
+#   includeStart = which(thisTrialData$trialNum == 1)
+#   includeEnd = sapply(1 : nBlock, function(i){
+#     if(length(excludedTrials[[i]] > 0)){
+#       min(excludedTrials[[i]])-1
+#     }else{
+#       max(which(thisTrialData$blockNum ==i))  
+#     }
+#   })
+#   tempt = lapply(1 : nBlock, function(i)
+#     truncateTrials(thisTrialData, includeStart[i], includeEnd[i]))
+#   thisTrialData = do.call("rbind", tempt)
+#   
+# }
+
+

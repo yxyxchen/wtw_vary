@@ -1,7 +1,7 @@
 # in this dataset, only trials within the 7 mins will be kept. Therefore, we don't need to delete any data
 
 # determine whether to truncate data
-isTrun = T
+isTrun = F
 
 # load libraries
 source('subFxs/loadFxs.R') # for loading data 
@@ -58,18 +58,13 @@ for (sIdx in 1 : n) {
     thisTrialData = trialData[[thisID]]
     thisBlockIdx = (thisTrialData$blockNum == bkIdx)
     thisTrialData = thisTrialData[thisBlockIdx,]
+    # truncate the last min(tMaxs) seconds
     cond = unique(thisTrialData$condition)
     cIdx = ifelse(cond == "Rising", 1, 2)
-    # truncate the last min(tMaxs) seconds
     if(isTrun){
-      excluedTrials = which(thisTrialData$trialStartTime > (blockSecs - tMaxs[2] * 0.5))
+      excludedTrials = which(thisTrialData$trialStartTime > (blockSecs - tMaxs[cIdx]))
+      thisTrialData = thisTrialData[! (1 : nrow(thisTrialData) %in% excludedTrials),]
       nExclude[[noIdx]] = length(excluedTrials)
-      if( nExclude[[noIdx]] > 0){
-        includeEnd = min(excluedTrials) - 1
-      }else{
-        includeEnd = length(thisTrialData$blockNum)
-      }
-      thisTrialData = truncateTrials(thisTrialData, 1, includeEnd)
     }
     # generate arguments for later analysis 
     label = sprintf('Subject %s, Cond %s',thisID, unique(thisTrialData$condition))
@@ -81,14 +76,14 @@ for (sIdx in 1 : n) {
     timeWaited = thisTrialData$timeWaited
     trialEarnings = thisTrialData$trialEarnings
     scheduledWait = thisTrialData$scheduledWait
-    timeWaited[trialEarnings > loseValue] = scheduledWait[trialEarnings > loseValue]
-    nAction[noIdx] = sum(round(ifelse(trialEarnings > loseValue, ceiling(timeWaited / stepDuration), floor(timeWaited / stepDuration) + 1)))
+    timeWaited[trialEarnings == loseValue] = scheduledWait[trialEarnings == loseValue]
+    nAction[noIdx] = sum(round( ceiling(timeWaited / stepDuration)))
     nTrial[noIdx] = length(timeWaited)
     # calculate varQuitTime
-    stdQuitTime[noIdx] = ifelse(totalEarnings[noIdx] == 0, NA, sd(timeWaited[trialEarnings == 0]))
-    cvQuitTime[noIdx] = ifelse(totalEarnings[noIdx] == 0, NA, sd(timeWaited[trialEarnings == 0]) / mean(timeWaited[trialEarnings == 0]))
-    muQuitTime[noIdx] = mean(timeWaited[trialEarnings == 0])
-    nQuit[noIdx] = sum(trialEarnings == 0)
+    stdQuitTime[noIdx] = ifelse(totalEarnings[noIdx] == loseValue, NA, sd(timeWaited[trialEarnings == loseValue]))
+    cvQuitTime[noIdx] = ifelse(totalEarnings[noIdx] == loseValue, NA, sd(timeWaited[trialEarnings == loseValue]) / mean(timeWaited[trialEarnings == loseValue]))
+    muQuitTime[noIdx] = mean(timeWaited[trialEarnings == loseValue])
+    nQuit[noIdx] = sum(trialEarnings == loseValue)
       
     # plot trial-by-trial data
     if (plotTrialwiseData) {
@@ -134,14 +129,14 @@ save(kmOnGrid_, file = 'genData/expDataAnalysis/kmOnGridBlock.RData')
 save(blockData, file = 'genData/expDataAnalysis/blockData.RData')
 
 # descriptive statistics for individual subjects and blocks
-for (sIdx in 1 : n) {
-  thisID = allIDs[sIdx]
-  thisTrialData = trialData[[thisID]]
-  label = sprintf('Subject %s',thisID)
-  trialPlots(block2session(thisTrialData),label)
-  readline(prompt = paste('subject',thisID, '(hit ENTER to continue)'))
-  graphics.off()
-}
+# for (sIdx in 1 : n) {
+#   thisID = allIDs[sIdx]
+#   thisTrialData = trialData[[thisID]]
+#   label = sprintf('Subject %s',thisID)
+#   trialPlots(block2session(thisTrialData),label)
+#   readline(prompt = paste('subject',thisID, '(hit ENTER to continue)'))
+#   graphics.off()
+# }
 
 # plot AUC in two conditions
 library("ggpubr")
@@ -186,25 +181,6 @@ data.frame(kmsc = unlist(kmOnGrid_), time = rep(kmGrid, n * nBlock),
   geom_ribbon(aes(ymin=min, ymax=max),alpha = 0.3, colour=NA)+
   geom_line(size = 1.5) + myTheme + scale_fill_manual(values = conditionColors) + 
   xlab("Elapsed time (s)") + ylab("Survival rate") + scale_color_manual(values = conditionColors)
-
-#   geom_line(data = ideal, aes(time, kmsc, color = condition), linetype = "dotted", size = 1)
 ggsave("figures/expDataAnalysis/zTruc_kmsc_timecourse.png", width = 5, height = 4) 
 
-
-
-###
-blockData$cbal = rep(hdrData$cbal, each = 4)
-R2F = blockData %>% filter(cbal == 1) %>% with(AUC[blockNum == 3] - AUC[blockNum == 4])
-F2R = blockData %>% filter(cbal == 2) %>% with(AUC[blockNum == 3] - AUC[blockNum == 4])
-
-hist(R2F)
-hist(F2R)
-
-plotData = data.frame(value = c(abs(R2F), abs(F2R)), condition = c("R2F", "F2R"), time = c(length(R2F), length(F2R)))
-library(ggpubr)
-compare_means(value ~ condition, plotData)
-
-library("ggplot2")
-ggplot(plotData, aes(condition, value)) + geom_boxplot() + stat_compare_means() + myTheme + 
-  ylab("AUC abs adaption (s)")
 

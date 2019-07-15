@@ -1,12 +1,4 @@
-# in this script, we try to calculate the optimWaitingTimes and the optimRewardRates
-# to be as close as to the normal analysis (like integrate the prob density)
-# we assume rewards happen at the middle of the gap(therefore, the meanRewardDelay would be unbiased)
-# yet in wtwSettingsEnd.R, to unfiy different algorithms, we assume rewards happen at the end of the gap
-# however, results for LP still change with the stepDuration
-# we do all the calculation by stepDuration = 0.5, and the optimWaitTime, you know is not that...
-
-# we use this script to get stepDuration
-# we don't use the reward rate here, it is close to the normal analysis, but not that good.
+# 
 ######## condition varibles #########
 conditions = c("Rising", "Falling")
 conditionColors = c("#008837", "#7b3294")
@@ -18,17 +10,24 @@ blockSecs = blockMins * 60 # block duration in secs
 iti = 2 # iti duration in secs
 tGrid = seq(0, blockSecs, 1)
 kmGrid = seq(0, min(tMaxs), 0.1)
+stepDuration = 1
 
 ######### reward variable ########
-tokenValue = 10 #value of the token
+tokenValue = c(-1, 8) #value of the token
 loseValue = 0
-stepDuration = 1
-########## supporting vairbales ########
-optimWaitTimes = list(HP = 30, LP = 5)
-HP = tokenValue / ((2 + 16) / 2 + iti)
-LP = tokenValue / ((2 + 16) / 2 + iti)
-optimRewardRates = list(HP = HP, LP = LP) 
 
+########## waiting time and reward rate vairbales ########
+# in this task, two truncated gamma distributions were equally sampled
+# the gamma document in Matlab is a little bit strange, where a is the shape, namely k
+# while b is not the rate but the scale, which is usually presented by theta.
+# (fast:k = 2, theta = 2; slow: a= 6, theta = 2). btw, mu_fast = 4, mu_slow = 12
+# To sample the distribution evenly, they first divided each distribution by its quartiles into 4 components 
+# and sampled equally from 4 components.
+
+optimWaitTimes = list(HP = 30, LP = 5) # roughly estimations from Joe's grant. 
+HP = mean(tokenValue) / (30 + iti)
+LP = mean(tokenValue) / (5 + iti)
+optimRewardRates = list(HP = HP, LP = LP) 
 save("conditions", "conditionColors", "tMaxs", "blockMins", "blockSecs", "iti", "tGrid", 
      "tokenValue", "stepDuration", "optimRewardRates", 
      "optimWaitTimes", "loseValue", "kmGrid", file = "wtwSettings.RData")
