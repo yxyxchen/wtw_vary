@@ -11,7 +11,6 @@ data {
   int Ts[N]; // terminal time step index 
   real stepDuration;
   real iti;
-  real tokenValue;
 }
 transformed data {
   int totalSteps = sum(Ts) - N;
@@ -54,10 +53,14 @@ transformed parameters{
     real RT = trialEarnings[tIdx];
     
     // update action values for rewarded trials
-    if(RT > 0){
+    if(RT != 0){
       for(t in 1 : (T - 1)){
         real G = RT - reRate * (T - t) + Viti;
-        Qwait[t] = Qwait[t] + phi * (G - Qwait[t]);
+        if(RT > 0){
+          Qwait[t] = Qwait[t] + phi * (G - Qwait[t]);
+        }else{
+           Qwait[t] = Qwait[t] + phiP * (G - Qwait[t]);
+        }
       }
     }else{
       if(T > 2){

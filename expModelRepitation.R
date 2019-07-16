@@ -12,12 +12,11 @@ source("subFxs/taskFxs.R") # drawSamples
 source("subFxs/repetitionFxs.R") # getRepFunction
 source("subFxs/analysisFxs.R") # kmsc, trialPlot
 
-# load summaryData
-nBlock = 2
+# load blockData
+nBlock = 4
 nComb = 10
 load("genData/expDataAnalysis/blockData.RData")
 load("genData/expDataAnalysis/kmOnGridBlock.RData")
-summaryData = blockData
 # load trialData since we need scheduledWait 
 allData = loadAllData()
 hdrData = allData$hdrData 
@@ -26,7 +25,7 @@ allIDs = hdrData$ID
 
 
 # re-simulate data
-modelName = "PRbs"
+modelName = "Rlearn"
 dir.create("figures/expModelRepitation")
 dir.create(sprintf("figures/expModelRepitation/%s",modelName))
 thisRep = modelRepitation(modelName, summaryData, expTrialData, nComb) # set seeds indise
@@ -38,7 +37,6 @@ expPara = thisRep$expPara
 repTrialData = thisRep$repTrialData
 
 paras = getParas(modelName)
-
 useID = factor(getUseID(expPara, paras), levels = levels(hdrData$ID))
 repNo = thisRep$repNo
 nSub =(length(useID))
@@ -50,16 +48,15 @@ plotKMSC = F
 for(sIdx in 1 : nSub){
   # prepare inputs
   id = useID[[sIdx]]
-  nTrial = summaryData$nTrial[summaryData$id == id]
   label = sprintf("sub%d", id)
   kmOnGridMatrix = matrix(NA, nrow = length(kmGrid), ncol = nComb)
   for(cIdx in 1 : nComb){
     thisRepTrialData = repTrialData[[repNo[cIdx, which(thisRep$useID == id)]]]
-    for(bkIdx in 1 : 2){
-      noIdx = sIdx * 2 - 2 + bkIdx
-      startIdx = min(which(thisRepTrialData$cond == conditions[3 - bkIdx]))
-      endIdx = max(which(thisRepTrialData$cond == conditions[3 - bkIdx]))
-      kmscResults = kmsc(truncateTrials(thisRepTrialData, startIdx, endIdx), min(tMaxs), label ,plotKMSC, kmGrid)
+    for(bkIdx in 1 : nBlock){
+      noIdx = sIdx * nBlock - nBlock + bkIdx
+      thisRepTrialData[c("Qwaits", "Qquits", "Vitis", "Gs", "deltas")] = NULL
+      thisRepTrialData = as.data.frame(thisRepTrialData)
+      kmscResults = kmsc(thisRepTrialData[thisRepTrialData$blockNum == bkIdx,], min(tMaxs), label ,plotKMSC, kmGrid)
       AUCRep_[cIdx,noIdx] = kmscResults[['auc']]
       stdWdRep_[cIdx, noIdx] = kmscResults$stdWd
       kmOnGridMatrix[,cIdx] = kmscResults$kmOnGrid
@@ -74,11 +71,12 @@ minAUCRep = muAUCRep - stdAUCRep;maxAUCRep = muAUCRep + stdAUCRep
 muStdWdRep = apply(stdWdRep_, MARGIN = 2, mean);stdStdWdRep = apply(stdWdRep_, MARGIN = 2, sd)
 minStdWdRep = muStdWdRep - stdStdWdRep;maxStdWdRep = muStdWdRep + stdStdWdRep
 data.frame(muAUCRep, minAUCRep, maxAUCRep,muStdWdRep, minStdWdRep, maxStdWdRep,
-                      AUC = summaryData$AUC[summaryData$id %in% useID], stdWD = summaryData$stdWd[summaryData$id %in% useID],
-                      condition = summaryData$condition[summaryData$id %in% useID]) %>%
+                      AUC = blockData$AUC[blockData$id %in% useID], stdWD = blockData$stdWd[blockData$id %in% useID],
+                      condition = blockData$condition[blockData$id %in% useID],
+           blockNum = blockData$blockNum[blockData$id %in% useID]) %>%
   ggplot(aes(AUC, muAUCRep)) +  geom_errorbar(aes(ymin = minAUCRep, ymax = maxAUCRep), color = "grey") +
-  geom_point(size = 2) + facet_grid(~condition) + 
-  geom_abline(slope = 1, intercept = 0) + saveTheme + xlim(c(-2, 22)) + ylim(c(-2, 22)) +
+  geom_point(size = 2) + facet_grid(~blockNum) + 
+  geom_abline(slope = 1, intercept = 0) + saveTheme + xlim(c(-2, 32)) + ylim(c(-2, 32)) +
   ylab("Model-generated (s)") + xlab("Observed (s)") + ggtitle(sprintf("Average WTW, n = %d", length(useID))) +
   myThemeBig + theme(plot.title = element_text(face = "bold", hjust = 0.5))
 fileName = sprintf("figures/expModelRepitation/%s/AUC_AUCRep.png", modelName)
@@ -86,10 +84,11 @@ ggsave(filename = fileName,  width = 6, height = 4)
 
 # I don't know
 data.frame(muAUCRep, minAUCRep, maxAUCRep,muStdWdRep, minStdWdRep, maxStdWdRep,
-           AUC = summaryData$AUC[summaryData$id %in% useID], stdWd = summaryData$stdWd[summaryData$id %in% useID],
-           condition = summaryData$condition[summaryData$id %in% useID]) %>%
+           AUC = blockData$AUC[blockData$id %in% useID], stdWd = blockData$stdWd[blockData$id %in% useID],
+           condition = blockData$condition[blockData$id %in% useID],
+           blockNum = blockData$blockNum[blockData$id %in% useID]) %>%
   ggplot(aes(stdWd, muStdWdRep)) + geom_point() + geom_errorbar(aes(ymin = minStdWdRep, ymax = maxStdWdRep), color = "grey") +
-  geom_point(size = 2) + facet_grid(~condition) + 
+  geom_point(size = 2) + facet_grid(~blockNum) + 
   geom_abline(slope = 1, intercept = 0) + saveTheme  +
   ylab(expression(bold(paste("Model-generated (s"^2,")")))) +
   xlab(expression(bold(paste("Observed (s"^2,")")))) +ggtitle(sprintf("Std WTW, n = %d", length(useID)))+
@@ -100,7 +99,7 @@ ggsave(filename = fileName,  width = 6, height = 4)
 # compare emipircal and reproduced trialPlot, for one participant 
 id = 9
 sIdx = which(useID  == id)
-cond = unique(summaryData$condition[summaryData$id == id])
+cond = unique(blockData$condition[blockData$id == id])
 label = sprintf("Sub %d, %s", id, cond)
 if(isTrun){
   junk = lastTrunc(expTrialData[[id]])

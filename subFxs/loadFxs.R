@@ -29,7 +29,7 @@ loadAllData = function() {
     ID[i] = id
     cbal[i] = as.double(substr(junk[[1]][1], 7, 7))
   }
-  hdrData = data.frame(ID = ID, cbal = cbal, stringsAsFactors = F)
+  hdrData = data.frame(ID = factor(ID), cbal = cbal, stringsAsFactors = F)
   
   # define column names 
   colNames = c('blockNum', 'trialNum', 'trialStartTime', 'nKeyPresses', 'scheduledWait',
