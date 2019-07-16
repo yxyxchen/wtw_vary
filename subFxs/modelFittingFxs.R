@@ -41,8 +41,7 @@ modelFitting = function(thisTrialData, fileName, paras, model, modelName){
                     Ts = Ts,
                     #
                     iti = iti,
-                    stepDuration = stepDuration,
-                    tokenValue = tokenValue)
+                    stepDuration = stepDuration)
   fit = sampling(object = model, data = data_list, cores = 1, chains = nChain,
                  iter = nIter) 
   # extract parameters

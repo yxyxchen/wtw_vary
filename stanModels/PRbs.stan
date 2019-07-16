@@ -11,7 +11,6 @@ data {
   int Ts[N]; // terminal time step index 
   real stepDuration;
   real iti;
-  real tokenValue;
 }
 transformed data {
   int totalSteps = sum(Ts) - N;
