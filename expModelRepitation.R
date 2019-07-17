@@ -25,7 +25,7 @@ allIDs = hdrData$ID
 
 
 # re-simulate data
-modelName = "Rlearn"
+modelName = "RlearnL"
 dir.create("figures/expModelRepitation")
 dir.create(sprintf("figures/expModelRepitation/%s",modelName))
 thisRep = modelRepitation(modelName, summaryData, expTrialData, nComb) # set seeds indise
@@ -76,7 +76,7 @@ data.frame(muAUCRep, minAUCRep, maxAUCRep,muStdWdRep, minStdWdRep, maxStdWdRep,
            blockNum = blockData$blockNum[blockData$id %in% useID]) %>%
   ggplot(aes(AUC, muAUCRep)) +  geom_errorbar(aes(ymin = minAUCRep, ymax = maxAUCRep), color = "grey") +
   geom_point(size = 2) + facet_grid(~blockNum) + 
-  geom_abline(slope = 1, intercept = 0) + saveTheme + xlim(c(-2, 32)) + ylim(c(-2, 32)) +
+  geom_abline(slope = 1, intercept = 0) + saveTheme + xlim(c(-4, 34)) + ylim(c(-4, 34)) +
   ylab("Model-generated (s)") + xlab("Observed (s)") + ggtitle(sprintf("Average WTW, n = %d", length(useID))) +
   myThemeBig + theme(plot.title = element_text(face = "bold", hjust = 0.5))
 fileName = sprintf("figures/expModelRepitation/%s/AUC_AUCRep.png", modelName)
