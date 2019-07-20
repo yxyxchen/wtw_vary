@@ -66,9 +66,9 @@ loadAllData = function() {
   
 } 
 
-loadExpPara = function(paras, dirName){
-  # number of paras 
-  nE = length(paras) + 1
+loadExpPara = function(paraNames, dirName){
+  # number of paraNames 
+  nE = length(paraNames) + 1
   # number of files
   fileNames = list.files(path= dirName, pattern=("*_summary.txt"))
   library("gtools")
@@ -97,16 +97,16 @@ loadExpPara = function(paras, dirName){
   }
   # transfer expPara to data.frame
   expPara = data.frame(expPara)
-  junk = c(paras, "LL_all")
+  junk = c(paraNames, "LL_all")
   colnames(expPara) = c(junk, paste0(junk, "SD"), paste0(junk, "Effe"), paste0(junk, "Rhat"))
   expPara$id = idList
   return(expPara)
 }
 
 # I also need to load 2.5% and 97.5%
-loadCVPara = function(paras, dirName, pattern){
-  # number of paras 
-  nE = length(paras) + 1
+loadCVPara = function(paraNames, dirName, pattern){
+  # number of paraNames 
+  nE = length(paraNames) + 1
   # number of files
   fileNames = list.files(path= dirName, pattern= pattern)
   library("gtools")
@@ -142,7 +142,7 @@ loadCVPara = function(paras, dirName, pattern){
   }
   # transfer expPara to data.frame
   expPara = data.frame(expPara)
-  junk = c(paras, "LL_all")
+  junk = c(paraNames, "LL_all")
   colnames(expPara) = c(junk, paste0(junk, "SD"), paste0(junk, "Effe"), paste0(junk, "Rhat"),
                         paste0(junk, "2.5"),paste0(junk, "97.5"))
   expPara$id = idList

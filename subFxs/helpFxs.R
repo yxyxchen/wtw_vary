@@ -1,31 +1,24 @@
 library("stringr")
-getParas = function(modelName){
-  if(modelName %in% c("para4", "curiosityTrialSp")) paras = c("phi", "tau", "gamma", "zeroPoint")
-  else if(modelName  %in% c("PR", "PRNC", "PRbs", "PRbsNC", "PRbsNCdb", "PRbsdb")) paras = c("phi", "phiP", "tau", "gamma", "zeroPoint")
-  else if(modelName %in% c(("MVT"))) paras = c("phi", "phiP", "tau", "reRateIni", "slope")
-  else if(modelName  %in% c("hyper")) paras = c("phi", "phiP", "tau", "k", "zeroPoint")
-  else if(modelName == "PR_cost") paras = c("phi", "phiP", "tau", "gamma", "zeroPoint", "cost")
-  else if(modelName %in% c("uniPrior", "uniPriorNC", "uniPriordb", "uniPriordbNC")) paras = c("phi", "phiP", "tau", "gamma", "QwaitIni")
-  else if(modelName == "risk") paras = c("phi", "tau", "gamma", "utiCurve")
-  else if(modelName == "baseline") paras = c("waitRate")
-  else if(modelName %in% c("Rlearn", "Rlearndb")) paras = c("phi", "phiP", "tau", "zeroPoint")
-  else if(modelName %in% c("RlearnL", "RlearnLdb")) paras = c("phi", "phiP", "tau", "zeroPoint", "beta", "betaP")
-  else if(modelName %in% c("reduce_gamma")) paras = c("phi", "phiP", "tau", "zeroPoint")
+getParaNames = function(modelName){
+  if(modelName == "QL1") paraNames = c("phi", "tau", "gamma", "prior")
+  else if(modelName == "QL2") paraNames = c("phi", "phiP", "tau", "gamma", "prior")
+  else if(modelName == "RL1") paraNames = c("phi", "tau", "prior", "beta")
+  else if(modelName =="RL2") paraNames = c("phi", "phiP", "tau", "prior", "beta", "betaP")
+  else if(modelName == "baseline") paraNames = c("pWait")
   else return("wrong model name")
-  return(paras)
 }
 
-getUseID = function(expPara, paras){
-  paras = c(paras, "LL_all")
+getUseID = function(expPara, paraNames){
+  paraNames = c(paraNames, "LL_all")
   idList = expPara$id
-  RhatCols = which(str_detect(colnames(expPara), "hat"))[1 : length(paras)]
-  EffeCols = which(str_detect(colnames(expPara), "Effe"))[1 : length(paras)]
+  RhatCols = which(str_detect(colnames(expPara), "hat"))[1 : length(paraNames)]
+  EffeCols = which(str_detect(colnames(expPara), "Effe"))[1 : length(paraNames)]
   if(length(RhatCols) == 1){
     useID = idList[expPara[,RhatCols] < 1.1 & 
                      expPara[,EffeCols] >100]
   }else{
-    useID = idList[apply(expPara[,RhatCols] < 1.1, MARGIN = 1, sum) == length(paras) & 
-                     apply(expPara[,EffeCols] >100, MARGIN = 1, sum) == length(paras)]
+    useID = idList[apply(expPara[,RhatCols] < 1.1, MARGIN = 1, sum) == length(paraNames) & 
+                     apply(expPara[,EffeCols] >100, MARGIN = 1, sum) == length(paraNames)]
   }
   return(useID)
 }

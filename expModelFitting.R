@@ -11,7 +11,7 @@ expModelFitting = function(modelName){
   library("coda") 
   source('subFxs/modelFittingFxs.R') # for fitting each single participant
   source('subFxs/loadFxs.R') # for load data
-  source("subFxs/helpFxs.R") # for getParas
+  source("subFxs/helpFxs.R") # for getparaNames
   source("subFxs/analysisFxs.R") # for block2session
   load("wtwSettings.RData")
   
@@ -32,10 +32,10 @@ expModelFitting = function(modelName){
   idList = hdrData$ID                   
   n = length(idList)                    
   
-  # determine paras
-  paras = getParas(modelName)
-  if(paras == "wrong model name"){
-    print(paras)
+  # determine paraNames
+  paraNames = getParaNames(modelName)
+  if(paraNames == "wrong model name"){
+    print(paraNames)
     break
   }
 
@@ -51,14 +51,16 @@ expModelFitting = function(modelName){
     thisID = idList[[i]]
     thisTrialData = trialData[[thisID]]
     # excluded some trials
-    excluedTrialsRise = which(thisTrialData$trialStartTime > (blockSecs - tMaxs[2]) &
-                                thisTrialData$condition == "Rising")
-    excluedTrialsFall = which(thisTrialData$trialStartTime > (blockSecs - tMaxs[1]) &
-                              thisTrialData$condition == "Falling")
-    excluedTrials = c(excluedTrialsRise, excluedTrialsFall)
-    thisTrialData = thisTrialData[!(1 : nrow(thisTrialData)) %in% excluedTrials,]
+    excluedTrials1 = which(thisTrialData$trialStartTime > (blockSecs - tMaxs[1]) &
+                             thisTrialData$condition == conditions[1])
+    excluedTrials2 = which(thisTrialData$trialStartTime > (blockSecs - tMaxs[2]) &
+                             thisTrialData$condition == conditions[2])
+    excluedTrials = c(excluedTrials1, excluedTrials2)
+    thisTrialData = thisTrialData[(!(1 : nrow(thisTrialData)) %in% excluedTrials) & thisTrialData$blockNum <= 2,]
+    cond = thisTrialData$condition
+    scheduledWait = thisTrialData$scheduledWait
     # thisTrialData = block2session(thisTrialData) not needed, since we only use timeWaited and trialEarnings
     fileName = sprintf("genData/expModelFitting/%s/s%s", modelName, thisID)
-    modelFitting(thisTrialData, fileName, paras, model, modelName)
+    modelFitting(thisTrialData, fileName, paraNames, model, modelName)
   }
 }

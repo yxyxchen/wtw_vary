@@ -7,7 +7,7 @@ expModelFitting = function(modelName){
   library('plyr'); library(dplyr); library(ggplot2);library('tidyr');library("stringr")
   source('subFxs/modelFittingFxs.R') # for fitting each single participant
   source('subFxs/loadFxs.R') # for load data
-  source("subFxs/helpFxs.R") # for getParas
+  source("subFxs/helpFxs.R") # for getparaNames
   load("wtwSettings.RData")
   
   #  set the environment for Rstan
@@ -58,16 +58,16 @@ expModelFitting = function(modelName){
   }
   
   # loop over models
-  paras = getParas(modelName)
-  nPara = length(paras)
+  paraNames = getParaNames(modelName)
+  nPara = length(paraNames)
   
   # load cvPara
   # enter the refit stage
   nLoop = 1
   while(nLoop < 15){
-    cvPara = loadCVPara(paras, sprintf("genData/expModelFittingCV/%sdb", modelName),
+    cvPara = loadCVPara(paraNames, sprintf("genData/expModelFittingCV/%sdb", modelName),
                         "*_summary.txt")
-    useID = getUseID(cvPara, paras)
+    useID = getUseID(cvPara, paraNames)
     excID = idsCV[!idsCV %in% useID]
     
     # refit the mode
@@ -95,12 +95,14 @@ expModelFitting = function(modelName){
         # prepare data
         thisTrialData = trialData[[ids[sIdx]]]
         # excluded some trials
-        excluedTrialsHP = which(thisTrialData$trialStartTime > (blockSecs - tMaxs[1]) &
-                                  thisTrialData$condition == "HP")
-        excluedTrialsLP = which(thisTrialData$trialStartTime > (blockSecs - tMaxs[2]) &
-                                  thisTrialData$condition == "LP")
-        excluedTrials = c(excluedTrialsHP, excluedTrialsLP)
-        thisTrialData = thisTrialData[!(1 : nrow(thisTrialData)) %in% excluedTrials,]
+        excluedTrials1 = which(thisTrialData$trialStartTime > (blockSecs - tMaxs[1]) &
+                                 thisTrialData$condition == conditions[1])
+        excluedTrials2 = which(thisTrialData$trialStartTime > (blockSecs - tMaxs[2]) &
+                                 thisTrialData$condition == conditions[2])
+        excluedTrials = c(excluedTrials1, excluedTrials2)
+        thisTrialData = thisTrialData[(!(1 : nrow(thisTrialData)) %in% excluedTrials) & thisTrialData$blockNum <= 2,]
+        cond = thisTrialData$condition
+        scheduledWait = thisTrialData$scheduledWait
         # select the training set
         load(sprintf("genData/expModelFittingCV/split/s%d.RData", ids[sIdx]))
         select = as.vector(partTable[-fIdx,])
@@ -113,19 +115,16 @@ expModelFitting = function(modelName){
                                  ids[sIdx], fIdx),header = F)
         low= tempt[1:nPara,4]
         up = tempt[1 : nPara,8]
-        converge = modelFittingCVdb(thisTrialData, fileName, paras, model, modelName, nPara, low, up)
+        converge = modelFittingCVdb(thisTrialData, fileName, paraNames, model, modelName, nPara, low, up)
       }# loop over participants  
       nLoop = nLoop + 1
     }else{
       break
-      print("finish!")
-      print(modelName)
-      print(nSub)
     }
   }
   # evaluate useID again
-  cvPara = loadCVPara(paras, sprintf("genData/expModelFittingCV/%sdb", modelName),"*_summary.txt")
-  useID = getUseID(cvPara, paras)
+  cvPara = loadCVPara(paraNames, sprintf("genData/expModelFittingCV/%sdb", modelName),"*_summary.txt")
+  useID = getUseID(cvPara, paraNames)
   print("finish!")
   print(modelName)
   print(length(useID))

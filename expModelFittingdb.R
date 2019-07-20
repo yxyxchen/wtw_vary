@@ -11,7 +11,7 @@ expModelFitting = function(modelName){
   library("coda") 
   source('subFxs/modelFittingFxs.R') # for fitting each single participant
   source('subFxs/loadFxs.R') # for load data
-  source("subFxs/helpFxs.R") # for getParas
+  source("subFxs/helpFxs.R") # for getparaNames
   load("wtwSettings.RData")
   source("subFxs/analysisFxs.R")
   
@@ -55,11 +55,11 @@ expModelFitting = function(modelName){
     }
   }
   
-  # determine paras
-  paras = getParas(modelName)
-  nPara = length(paras)
-  if(paras == "wrong model name"){
-    print(paras)
+  # determine paraNames
+  paraNames = getParaNames(modelName)
+  nPara = length(paraNames)
+  if(paraNames == "wrong model name"){
+    print(paraNames)
     break
   }
   
@@ -67,9 +67,9 @@ expModelFitting = function(modelName){
   nLoop = 1
   while(nLoop < 15){
     # determine excID
-    expPara = loadExpPara(paras,
+    expPara = loadExpPara(paraNames,
                           sprintf("genData/expModelFitting/%sdb", modelName))
-    useID = factor(getUseID(expPara, paras), levels = levels(hdrData$ID))
+    useID = factor(getUseID(expPara, paraNames), levels = levels(hdrData$ID))
     excID = ids[!ids %in% useID]
     
     # loop over excID
@@ -92,12 +92,14 @@ expModelFitting = function(modelName){
         # prepare
         thisTrialData = trialData[[thisID]]
         # excluded some trials
-        excluedTrialsHP = which(thisTrialData$trialStartTime > (blockSecs - tMaxs[1]) &
-                                  thisTrialData$condition == "HP")
-        excluedTrialsLP = which(thisTrialData$trialStartTime > (blockSecs - tMaxs[2]) &
-                                  thisTrialData$condition == "LP")
-        excluedTrials = c(excluedTrialsHP, excluedTrialsLP)
-        thisTrialData = thisTrialData[!(1 : nrow(thisTrialData)) %in% excluedTrials,]
+        excluedTrials1 = which(thisTrialData$trialStartTime > (blockSecs - tMaxs[1]) &
+                                 thisTrialData$condition == conditions[1])
+        excluedTrials2 = which(thisTrialData$trialStartTime > (blockSecs - tMaxs[2]) &
+                                 thisTrialData$condition == conditions[2])
+        excluedTrials = c(excluedTrials1, excluedTrials2)
+        thisTrialData = thisTrialData[(!(1 : nrow(thisTrialData)) %in% excluedTrials) & thisTrialData$blockNum <= 2,]
+        cond = thisTrialData$condition
+        scheduledWait = thisTrialData$scheduledWait
         # determine fileName
         fileName = sprintf("genData/expModelFitting/%sdb/s%s", modelName, thisID)
         # refit
@@ -106,20 +108,17 @@ expModelFitting = function(modelName){
                          header = F)
         low= tempt[1:nPara,4]
         up = tempt[1 : nPara,8]
-        converge = modelFittingdb(thisTrialData, fileName, paras, model, modelName, nPara, low, up)
+        converge = modelFittingdb(thisTrialData, fileName, paraNames, model, modelName, nPara, low, up)
       }# loop over participants
       nLoop = nLoop + 1
     }else{
-      print("finish!")
-      print(modelName)
-      print(nSub)
       break
     }
   }
   # evaluate useID again
-  expPara = loadExpPara(paras,
+  expPara = loadExpPara(paraNames,
                         sprintf("genData/expModelFitting/%sdb", modelName))
-  useID = getUseID(expPara, paras)
+  useID = getUseID(expPara, paraNames)
   print("finish!")
   print(modelName)
   print(length(useID))
