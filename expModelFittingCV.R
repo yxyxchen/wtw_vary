@@ -27,7 +27,8 @@ splitExpData = function(){
     excluedTrialsLP = which(thisTrialData$trialStartTime > (blockSecs - tMaxs[2]) &
                               thisTrialData$condition == conditions[2])
     excluedTrials = c(excluedTrialsHP, excluedTrialsLP)
-    thisTrialData = thisTrialData[!(1 : nrow(thisTrialData)) %in% excluedTrials,]
+    thisTrialData = thisTrialData[!(1 : nrow(thisTrialData)) %in% excluedTrials &
+                                    thisTrialData$blockNum <=2,]
     # determine partitions 
     nPart = ceiling(nrow(thisTrialData) / nFold)
     partTable = sapply(1 : nPart, function(i) sample(1:nFold,replace = FALSE) + (i -1) * nFold)

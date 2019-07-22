@@ -1,7 +1,7 @@
 # in this dataset, only trials within the 7 mins will be kept. Therefore, we don't need to delete any data
 
 # determine whether to truncate data
-isTrun = F
+isTrun = T
 
 # load libraries
 source('subFxs/loadFxs.R') # for loading data 
@@ -24,7 +24,7 @@ n = length(allIDs)                    # n
 cat('Analyzing data for',n,'subjects.\n')
 
 # define nBlock
-nBlock = 4
+nBlock = 2
 
 # control which individual-level plots to generate
 plotTrialwiseData = F
@@ -64,7 +64,7 @@ for (sIdx in 1 : n) {
     if(isTrun){
       excludedTrials = which(thisTrialData$trialStartTime > (blockSecs - tMaxs[cIdx]))
       thisTrialData = thisTrialData[! (1 : nrow(thisTrialData) %in% excludedTrials),]
-      nExclude[[noIdx]] = length(excluedTrials)
+      nExclude[[noIdx]] = length(excludedTrials)
     }
     # generate arguments for later analysis 
     label = sprintf('Subject %s, Cond %s',thisID, unique(thisTrialData$condition))
