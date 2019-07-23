@@ -16,14 +16,14 @@ QL1 = function(paras, cond, trialEarnings, timeWaited){
   phi = paras[1]; tau = paras[2]; gamma = paras[3]; prior = paras[4]
   
   # prepare inputs
-  nTrial = length(scheduledWait)
+  nTrial = length(trialEarnings)
   tMax= max(tMaxs)
   nTimeStep = tMax / stepDuration
   Ts = round(ceiling(timeWaited / stepDuration) + 1)
   
   # initialize action values
   subOptimalRatio = 0.9 
-  wIni = mean(optimRewardRates) * stepDuration / (1 - 0.9) * subOptimalRatio
+  wIni =  (optimRewardRates[[1]] + optimRewardRates[[2]]) / 2* stepDuration / (1 - 0.9) * subOptimalRatio
   Viti = wIni 
   Qwait = prior*0.1 - 0.1*(0 : (nTimeStep - 1)) + Viti
   
@@ -42,7 +42,7 @@ QL1 = function(paras, cond, trialEarnings, timeWaited){
   for(tIdx in 1 : nTrial) {
     # calculate likelyhood
     nextReward = trialEarnings[tIdx]
-    getReward = ifelse(nextReward == tokenValue, T, F)
+    getReward = ifelse(nextReward != 0, T, F)
     lik_[,tIdx] =  sapply(1 : nTimeStep, function(i) 1 / sum(1  + exp((gamma * Viti - Qwait[i])* tau)))
     # update action values 
     T = Ts[tIdx]
@@ -83,14 +83,14 @@ QL2 = function(paras, cond, trialEarnings, timeWaited){
   phi = paras[1]; phiP = paras[2]; tau = paras[3]; gamma = paras[4]; prior = paras[5]
   
   # prepare inputs
-  nTrial = length(scheduledWait)
+  nTrial = length(trialEarnings)
   tMax= max(tMaxs)
   nTimeStep = tMax / stepDuration
   Ts = round(ceiling(timeWaited / stepDuration) + 1)
   
   # initialize action values
   subOptimalRatio = 0.9 
-  wIni =  mean(optimRewardRates) * stepDuration / (1 - 0.9) * subOptimalRatio
+  wIni =   (optimRewardRates[[1]] + optimRewardRates[[2]]) / 2* stepDuration / (1 - 0.9) * subOptimalRatio
   Viti = wIni 
   Qwait = prior*0.1 - 0.1*(0 : (nTimeStep - 1)) + Viti
   
@@ -109,7 +109,7 @@ QL2 = function(paras, cond, trialEarnings, timeWaited){
   for(tIdx in 1 : nTrial) {
     # calculate likelyhood
     nextReward = trialEarnings[tIdx]
-    getReward = ifelse(nextReward == tokenValue, T, F)
+    getReward = ifelse(nextReward != 0, T, F)
     lik_[,tIdx] =  sapply(1 : nTimeStep, function(i) 1 / sum(1  + exp((gamma * Viti - Qwait[i])* tau)))
     # update action values 
     T = Ts[tIdx]
@@ -118,7 +118,12 @@ QL2 = function(paras, cond, trialEarnings, timeWaited){
       if(getReward){
         targets[1 : (T-1), tIdx] = returns[1 : (T-1)];
         deltas[1 : (T-1), tIdx] = returns[1 : (T-1)] - Qwait[1 : (T-1)]
-        Qwait[1 : (T-1)] = Qwait[1 : (T-1)] + phi*(returns[1 : (T-1)] - Qwait[1 : (T-1)])
+        if(nextReward > 0){
+          Qwait[1 : (T-1)] = Qwait[1 : (T-1)] + phi*(returns[1 : (T-1)] - Qwait[1 : (T-1)])
+        }else{
+          Qwait[1 : (T-1)] = Qwait[1 : (T-1)] + phiP*(returns[1 : (T-1)] - Qwait[1 : (T-1)])
+        }
+        
       }else{
         if(T > 2){
           targets[1 : (T-2), tIdx] = returns[1 : (T-2)]
@@ -150,14 +155,14 @@ RL1 = function(paras, cond, trialEarnings, timeWaited){
   phi = paras[1]; tau = paras[2]; prior = paras[3]; beta = paras[4];
   
   # prepare inputs
-  nTrial = length(scheduledWait)
+  nTrial = length(trialEarnings)
   tMax= max(tMaxs)
   nTimeStep = tMax / stepDuration
   Ts = round(ceiling(timeWaited / stepDuration) + 1)
   
   # initialize actionValues
   subOptimalRatio = 0.9 
-  wIni =  mean(optimRewardRates)  * stepDuration * subOptimalRatio
+  wIni =   (optimRewardRates[[1]] + optimRewardRates[[2]]) / 2 * stepDuration * subOptimalRatio
   reRate = wIni
   Viti = 0 
   Qwait = prior*0.1 - 0.1*(0 : (nTimeStep - 1)) + Viti
@@ -178,7 +183,7 @@ RL1 = function(paras, cond, trialEarnings, timeWaited){
   for(tIdx in 1 : nTrial) {
     # calculate likelyhood
     nextReward = trialEarnings[tIdx]
-    getReward = ifelse(nextReward == tokenValue, T, F)
+    getReward = ifelse(nextReward != 0, T, F)
     lik_[,tIdx] =  sapply(1 : nTimeStep, function(i) 1 / sum(1  + exp((Viti - reRate)- Qwait[i])* tau))
     
     # update values 
@@ -224,14 +229,14 @@ RL2 = function(paras, cond, trialEarnings, timeWaited){
   beta = paras[5]; betaP = paras[6]
   
   # prepare inputs
-  nTrial = length(scheduledWait)
+  nTrial = length(trialEarnings)
   tMax= max(tMaxs)
   nTimeStep = tMax / stepDuration
   Ts = round(ceiling(timeWaited / stepDuration) + 1)
   
   # initialize actionValues
   subOptimalRatio = 0.9 
-  wIni =  mean(optimRewardRates)  * stepDuration * subOptimalRatio
+  wIni =   (optimRewardRates[[1]] + optimRewardRates[[2]]) / 2 * stepDuration * subOptimalRatio
   reRate = wIni
   Viti = 0 
   Qwait = prior*0.1 - 0.1*(0 : (nTimeStep - 1)) + Viti
@@ -252,7 +257,7 @@ RL2 = function(paras, cond, trialEarnings, timeWaited){
   for(tIdx in 1 : nTrial) {
     # calculate likelyhood
     nextReward = trialEarnings[tIdx]
-    getReward = ifelse(nextReward == tokenValue, T, F)
+    getReward = ifelse(nextReward != 0, T, F)
     lik_[,tIdx] =  sapply(1 : nTimeStep, function(i) 1 / sum(1  + exp((Viti - reRate)- Qwait[i])* tau))
     
     # update values 
@@ -262,7 +267,12 @@ RL2 = function(paras, cond, trialEarnings, timeWaited){
       if(getReward){
         targets[1 : (T-1), tIdx] = returns[1 : (T-1)];
         deltas[1 : (T-1), tIdx] = returns[1 : (T-1)] - Qwait[1 : (T-1)]
-        Qwait[1 : (T-1)] = Qwait[1 : (T-1)] + phi*(returns[1 : (T-1)] - Qwait[1 : (T-1)])
+        if(nextReward > 0){
+          Qwait[1 : (T-1)] = Qwait[1 : (T-1)] + phi*(returns[1 : (T-1)] - Qwait[1 : (T-1)])
+        }else{
+          Qwait[1 : (T-1)] = Qwait[1 : (T-1)] + phiP*(returns[1 : (T-1)] - Qwait[1 : (T-1)])
+        }
+        
       }else{
         if(T > 2){
           targets[1 : (T-2), tIdx] = returns[1 : (T-2)]
@@ -291,9 +301,16 @@ RL2 = function(paras, cond, trialEarnings, timeWaited){
   return(outputs)
 }
 
+
 BL = function(paras, cond, trialEarnings, timeWaited){
   # parse para
   pWait = paras[1];
+  
+  # prepare inputs
+  nTrial = length(trialEarnings)
+  tMax= max(tMaxs)
+  nTimeStep = tMax / stepDuration
+  Ts = round(ceiling(timeWaited / stepDuration) + 1)
   # calculate likelyhood
   lik_ = matrix(pWait, nrow = nTimeStep, ncol = nTrial)
   # return outputs
@@ -302,4 +319,5 @@ BL = function(paras, cond, trialEarnings, timeWaited){
   )
   return(outputs)
 }
+
 

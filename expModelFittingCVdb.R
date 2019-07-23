@@ -34,7 +34,6 @@ expModelFitting = function(modelName){
   hdrData = allData$hdrData           
   trialData = allData$trialData       
   nSub = nrow(hdrData)
-  idsCV = 1 : (nSub * nFold) # id encoded in cvPara
   ids = hdrData$ID# id encoded in trialData
   # initialize outputs
   
@@ -47,7 +46,7 @@ expModelFitting = function(modelName){
     dir.create(dbFile)
     allFiles = list.files(path = originalFile)
     nFile = length(allFiles)
-    if(nFile == length(idsCV)){
+    if(nFile == (nSub * nFold)){
       lapply(1 : nFile, function(i) file.copy(sprintf("%s/%s", originalFile, allFiles[i]),
                                               sprintf("%s/%s", dbFile, allFiles[i])))
       print("creat the debug folder")
@@ -67,6 +66,7 @@ expModelFitting = function(modelName){
   while(nLoop < 15){
     cvPara = loadCVPara(paraNames, sprintf("genData/expModelFittingCV/%sdb", modelName),
                         "*_summary.txt")
+    idsCV = cvPara$id
     useID = getUseID(cvPara, paraNames)
     excID = idsCV[!idsCV %in% useID]
     
@@ -78,12 +78,15 @@ expModelFitting = function(modelName){
       model = stan_model(file = sprintf("stanModels/%sdb.stan", modelName))
       foreach(i = 1 : length(excID)) %dopar% {
         # extract sIdx and fIdx from the id encoded in cvPara
-        sIdx = ceiling(excID[i] / nFold)  # ceiling groups 1-10 together yet floor + 1 groups 0-9 together
-        fIdx = excID[i] - (sIdx-1) * nFold
-        text = sprintf("reFit s%d_f%d", ids[sIdx], fIdx)
+        id = excID[i]
+        junk = str_locate(id, "s[0-9]+")
+        sIdx = substr(id, (junk[1] + 1), junk[2]) # use to load fit.RData and trialData
+        junk = str_locate(id, "f[0-9]+")
+        fIdx =  as.double(substr(id, (junk[1] + 1), junk[2]))
+        text = sprintf("reFit %s", id)
         print(text)
         # update nFits and converge
-        fitFile = sprintf("genData/expModelFittingCV/%sdb/afit_s%d_f%d.RData", modelName, ids[sIdx], fIdx)
+        fitFile = sprintf("genData/expModelFittingCV/%sdb/afit_%s.RData", modelName, id)
         if(file.exists(fitFile)){
           load(fitFile)
           nFit = nFit  + 1
@@ -93,7 +96,7 @@ expModelFitting = function(modelName){
           save(nFit, file = fitFile)
         }
         # prepare data
-        thisTrialData = trialData[[ids[sIdx]]]
+        thisTrialData = trialData[[sIdx]]
         # excluded some trials
         excluedTrials1 = which(thisTrialData$trialStartTime > (blockSecs - tMaxs[1]) &
                                  thisTrialData$condition == conditions[1])
@@ -104,15 +107,15 @@ expModelFitting = function(modelName){
         cond = thisTrialData$condition
         scheduledWait = thisTrialData$scheduledWait
         # select the training set
-        load(sprintf("genData/expModelFittingCV/split/s%d.RData", ids[sIdx]))
-        select = as.vector(partTable[-fIdx,])
+        load(sprintf("genData/expModelFittingCV/split/s%s.RData", sIdx))
+        select = c(1:5, as.vector(partTable[-fIdx,]))
         thisTrialData = thisTrialData[(1 : nrow(thisTrialData)) %in% select,]
-        fileName = sprintf("genData/expModelFittingCV/%sdb/s%d_f%d", modelName,
-                           ids[sIdx], fIdx)
+        fileName = sprintf("genData/expModelFittingCV/%sdb/%s", modelName,
+                           id)
         # refit
         # load upper and lower
-        tempt = read.csv(sprintf("genData/expModelFittingCV/%sdb/s%d_f%d_summary.txt", modelName,
-                                 ids[sIdx], fIdx),header = F)
+        tempt = read.csv(sprintf("genData/expModelFittingCV/%sdb/%s_summary.txt", modelName,
+                                 id),header = F)
         low= tempt[1:nPara,4]
         up = tempt[1 : nPara,8]
         converge = modelFittingCVdb(thisTrialData, fileName, paraNames, model, modelName, nPara, low, up)

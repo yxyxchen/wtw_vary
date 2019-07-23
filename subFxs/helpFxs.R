@@ -4,7 +4,7 @@ getParaNames = function(modelName){
   else if(modelName == "QL2") paraNames = c("phi", "phiP", "tau", "gamma", "prior")
   else if(modelName == "RL1") paraNames = c("phi", "tau", "prior", "beta")
   else if(modelName =="RL2") paraNames = c("phi", "phiP", "tau", "prior", "beta", "betaP")
-  else if(modelName == "baseline") paraNames = c("pWait")
+  else if(modelName == "BL") paraNames = c("pWait")
   else return("wrong model name")
 }
 
