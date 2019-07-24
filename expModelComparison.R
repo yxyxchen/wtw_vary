@@ -80,13 +80,11 @@ ids = hdrData$ID
 nSub = length(ids)
 nFold = 10
 logEvidence = matrix(nrow = length(ids), ncol= nModel) 
-logEvidenceTrain = list(length = nModel)
 for(mIdx in 1 : nModel){
   modelName = modelNames[mIdx]
   paraNames = getParaNames(modelName)
   nPara = length(paraNames)
   likFun = getLikFun(modelName)
-  thisLogEvidenceTrain = matrix(nrow = nFold, ncol = nSub)
   for(sIdx in 1 : nSub){
     id = ids[sIdx]
     load(sprintf("genData/expModelFittingCV/split/s%s.RData", id))
@@ -97,17 +95,39 @@ for(mIdx in 1 : nModel){
     excluedTrialsLP = which(thisTrialData$trialStartTime > (blockSecs - tMaxs[2]) &
                               thisTrialData$condition == conditions[2])
     excluedTrials = c(excluedTrialsHP, excluedTrialsLP)
-    thisTrialData = thisTrialData[!(1 : nrow(thisTrialData)) %in% excluedTrials &
+    thisTrialData = thisTrialData[(!(1 : nrow(thisTrialData)) %in% excluedTrials) &
                                     thisTrialData$blockNum <= 2,]
     # prepare the data
     nTrial = length(thisTrialData$trialEarnings)
     cond = thisTrialData$cond
     trialEarnings = thisTrialData$trialEarnings
-    timeWaited = pmin(thisTrialData$timeWaited, max(tMaxs))
+    timeWaited = thisTrialData$timeWaited
+    timeWaited[trialEarnings != 0] = thisTrialData$scheduledWait[trialEarnings != 0]
     Ts = round(ceiling(timeWaited / stepDuration) + 1)
     cvPara = loadCVPara(paraNames,
                         sprintf("genData/expModelFittingCV/%sdb",modelName),
                         pattern = sprintf("s%s_f[0-9]{1,2}_summary.txt", id))
+    # test
+    # tempt = read.csv(sprintf("genData/expModelFitting/%s/s%s.txt", modelName, id), header = F)
+    # 
+    # paras = as.double(tempt[1,1:nPara]) # use the para estmates from the training set
+    # lik_ = likFun(paras, cond, trialEarnings, timeWaited)$lik_
+    # LL_all = sum(sapply(1 : length(trialEarnings), function(i){
+    #   if(trialEarnings[i] != 0){
+    #     junk = log(lik_[1 : max(Ts[i]-1, 1), i])
+    #     junk[is.infinite(junk)] = -10000
+    #     sum(junk)
+    #   }else{
+    #     if(Ts[i] > 2){
+    #       junk = c(log(lik_[1:max(Ts[i] - 2,1), i]), log(1-lik_[Ts[i] - 1, i]))
+    #     }else{
+    #       junk = log(1-lik_[Ts[i] - 1, i])
+    #     }
+    #     junk[is.infinite(junk)] = -10000
+    #     sum(junk)
+    #   }
+    # }))
+    # 
     # initialize 
     LL_ = vector(length = nFold)
     if(length(getUseID(cvPara, paraNames)) == 10){
@@ -122,14 +142,20 @@ for(mIdx in 1 : nModel){
         # sum first all steps, then overl trials within a fold
         LL_[f] = sum(sapply(1 : length(trials), function(i){
           trial = trials[i]
-          if(trialEarnings[trial] > 0){
+          # change for this version
+          if(trialEarnings[trial] != 0){
             junk = log(lik_[1 : max(Ts[trial]-1, 1), trial])
             junk[is.infinite(junk)] = -10000
             sum(junk)
           }else{
-            junk = c(log(lik_[1:max(Ts[trial] - 2,1), trial]), log(1-lik_[Ts[trial] - 1, trial]))
-            junk[is.infinite(junk)] = -10000
-            sum(junk)
+            if(Ts[trial] > 2){
+              junk = c(log(lik_[1:max(Ts[trial] - 2,1), trial]), log(1-lik_[Ts[trial] - 1, trial]))
+              junk[is.infinite(junk)] = -10000
+              sum(junk)
+            }else{
+              junk = log(1-lik_[Ts[trial] - 1, trial])
+              junk
+            }
           }
         }))
       }

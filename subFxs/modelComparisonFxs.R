@@ -184,7 +184,7 @@ RL1 = function(paras, cond, trialEarnings, timeWaited){
     # calculate likelyhood
     nextReward = trialEarnings[tIdx]
     getReward = ifelse(nextReward != 0, T, F)
-    lik_[,tIdx] =  sapply(1 : nTimeStep, function(i) 1 / sum(1  + exp((Viti - reRate)- Qwait[i])* tau))
+    lik_[,tIdx] =  sapply(1 : nTimeStep, function(i) 1 / sum(1  + exp((Viti - reRate- Qwait[i])* tau)))
     
     # update values 
     T = Ts[tIdx]
@@ -258,7 +258,7 @@ RL2 = function(paras, cond, trialEarnings, timeWaited){
     # calculate likelyhood
     nextReward = trialEarnings[tIdx]
     getReward = ifelse(nextReward != 0, T, F)
-    lik_[,tIdx] =  sapply(1 : nTimeStep, function(i) 1 / sum(1  + exp((Viti - reRate)- Qwait[i])* tau))
+    lik_[,tIdx] =  sapply(1 : nTimeStep, function(i) 1 / sum(1  + exp((Viti - reRate- Qwait[i])* tau)))
     
     # update values 
     T = Ts[tIdx]
