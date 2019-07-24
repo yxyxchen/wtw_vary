@@ -14,11 +14,11 @@ data {
 }
 transformed data {
   int totalSteps = sum(Ts) - N;
-  real phi = ;
+  real tau = 1.45;
 }
 parameters {
+  real<lower = 0, upper = 0.3> phi;
   real<lower = 0, upper = 0.3> phiP; 
-  real<lower = 0.1, upper = 22> tau;
   real<lower = 0, upper = 65> prior; 
   real<lower = 0, upper = 0.3> beta;
   real<lower = 0, upper = 0.3> betaP;   
@@ -91,8 +91,8 @@ transformed parameters{
   }// end of the loop
 }
 model {
+  phi ~ uniform(0, 0.3);
   phiP ~ uniform(0, 0.3);
-  tau ~ uniform(0.1, 22);
   prior ~ uniform(0, 65);
   beta ~ uniform(0, 0.3);
   betaP ~ uniform(0, 0.3);  
