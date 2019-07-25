@@ -19,7 +19,7 @@ data {
 }
 transformed data {
   int totalSteps = sum(Ts) - N;
-  real prior = 28.3;
+  real prior = 36.8;
 }
 parameters {
   real<lower = low[1], upper = up[1]> phi;

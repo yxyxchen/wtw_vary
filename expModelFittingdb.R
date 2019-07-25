@@ -69,7 +69,7 @@ expModelFitting = function(modelName){
     # determine excID
     expPara = loadExpPara(paraNames,
                           sprintf("genData/expModelFitting/%sdb", modelName))
-    useID = factor(getUseID(expPara, paraNames), levels = levels(hdrData$ID))
+    useID = getUseID(expPara, paraNames)
     excID = ids[!ids %in% useID]
     
     # loop over excID

@@ -99,7 +99,7 @@ loadExpPara = function(paraNames, dirName){
   expPara = data.frame(expPara)
   junk = c(paraNames, "LL_all")
   colnames(expPara) = c(junk, paste0(junk, "SD"), paste0(junk, "Effe"), paste0(junk, "Rhat"))
-  expPara$id = factor(idList, levels = levels(hdrData$ID))
+  expPara$id = idList
   return(expPara)
 }
 
@@ -143,7 +143,7 @@ loadCVPara = function(paraNames, dirName, pattern){
   junk = c(paraNames, "LL_all")
   colnames(expPara) = c(junk, paste0(junk, "SD"), paste0(junk, "Effe"), paste0(junk, "Rhat"),
                         paste0(junk, "2.5"),paste0(junk, "97.5"))
-  expPara$id = factor(idList, levels = idList)
+  expPara$id = idList
   return(expPara)
 }
 

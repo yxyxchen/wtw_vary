@@ -14,7 +14,7 @@ data {
 }
 transformed data {
   int totalSteps = sum(Ts) - N;
-  real betaP = 0.00957;
+  real betaP = 0.00816;
 }
 parameters {
   real<lower = 0, upper = 0.3> phi;
