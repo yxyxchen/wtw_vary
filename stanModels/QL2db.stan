@@ -22,7 +22,7 @@ transformed data {
 }
 parameters {
   real<lower = low[1], upper = up[1]> phi;
-  real<lower = low[2], upper = up[2]> phiP; 
+  real<lower = low[2], upper = up[2]> nega; 
   real<lower = low[3], upper = up[3]> tau;
   real<lower = low[4], upper = up[4]> gamma;
   real<lower = low[5], upper = up[5]> prior; 
@@ -59,14 +59,14 @@ transformed parameters{
         if(RT > 0){
           Qwait[t] = Qwait[t] + phi * (G - Qwait[t]);
         }else{
-          Qwait[t] = Qwait[t] + phiP * (G - Qwait[t]);
+          Qwait[t] = Qwait[t] + nega * phi * (G - Qwait[t]);
         }
       }
     }else{
       if(T > 2){
         for(t in 1 : (T-2)){
           real G =  RT  * gamma^(T - t -1) + Viti * gamma^(T - t);
-          Qwait[t] = Qwait[t] + phiP * (G - Qwait[t]);    
+          Qwait[t] = Qwait[t] + nega * phi * (G - Qwait[t]);    
         }
       }
     }
@@ -76,7 +76,7 @@ transformed parameters{
     if(RT > 0){
        Viti = Viti + phi * (G1 * gamma^(iti / stepDuration) - Viti);
     }else{
-       Viti = Viti + phiP * (G1 * gamma^(iti / stepDuration) - Viti);
+       Viti = Viti + nega * phi * (G1 * gamma^(iti / stepDuration) - Viti);
     }
    
     // save action values
@@ -86,7 +86,7 @@ transformed parameters{
 }
 model {
   phi ~ uniform(low[1], up[1]);
-  phiP ~ uniform(low[2], up[2]);
+  nega ~ uniform(low[2], up[2]);
   tau ~ uniform(low[3], up[3]);
   gamma ~ uniform(low[4], up[4]);
   prior ~ uniform(low[5], up[5]);
@@ -103,7 +103,7 @@ model {
         action = 1; // wait
       }
       values[1] = Qwaits[i, tIdx] * tau;
-      values[2] = Vitis[tIdx] * tau * gamma;
+      values[2] = Vitis[tIdx] * tau;
       //action ~ categorical_logit(values);
       target += categorical_logit_lpmf(action | values);
     } 
@@ -126,7 +126,7 @@ generated quantities {
         action = 1; // wait
       }
       values[1] = Qwaits[i, tIdx] * tau;
-      values[2] = Vitis[tIdx] * tau * gamma;
+      values[2] = Vitis[tIdx] * tau;
       log_lik[no] =categorical_logit_lpmf(action | values);
       no = no + 1;
     }

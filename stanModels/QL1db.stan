@@ -93,7 +93,7 @@ model {
         action = 1; // wait
       }
       values[1] = Qwaits[i, tIdx] * tau;
-      values[2] = Vitis[tIdx] * tau * gamma;
+      values[2] = Vitis[tIdx] * tau;
       //action ~ categorical_logit(values);
       target += categorical_logit_lpmf(action | values);
     } 
@@ -116,7 +116,7 @@ generated quantities {
         action = 1; // wait
       }
       values[1] = Qwaits[i, tIdx] * tau;
-      values[2] = Vitis[tIdx] * tau * gamma;
+      values[2] = Vitis[tIdx] * tau;
       log_lik[no] =categorical_logit_lpmf(action | values);
       no = no + 1;
     }

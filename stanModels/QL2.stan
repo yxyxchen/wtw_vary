@@ -17,7 +17,7 @@ transformed data {
 }
 parameters {
   real<lower = 0, upper = 0.3> phi;
-  real<lower = 0, upper = 0.3> phiP; 
+  real<lower = 0, upper = 5> nega; 
   real<lower = 0.1, upper = 22> tau;
   real<lower = 0.5, upper = 1> gamma;
   real<lower = 0, upper = 65> prior; 
@@ -54,14 +54,14 @@ transformed parameters{
         if(RT > 0){
           Qwait[t] = Qwait[t] + phi * (G - Qwait[t]);
         }else{
-          Qwait[t] = Qwait[t] + phiP * (G - Qwait[t]);
+          Qwait[t] = Qwait[t] + phi * nega * (G - Qwait[t]);
         }
       }
     }else{
       if(T > 2){
         for(t in 1 : (T-2)){
           real G =  RT  * gamma^(T - t -1) + Viti * gamma^(T - t);
-          Qwait[t] = Qwait[t] + phiP * (G - Qwait[t]);    
+          Qwait[t] = Qwait[t] + phi * nega * (G - Qwait[t]);    
         }
       }
     }
@@ -71,7 +71,7 @@ transformed parameters{
     if(RT > 0){
        Viti = Viti + phi * (G1 * gamma^(iti / stepDuration) - Viti);
     }else{
-       Viti = Viti + phiP * (G1 * gamma^(iti / stepDuration) - Viti);
+       Viti = Viti + phi * nega * (G1 * gamma^(iti / stepDuration) - Viti);
     }
    
     // save action values
@@ -81,7 +81,7 @@ transformed parameters{
 }
 model {
   phi ~ uniform(0, 0.3);
-  phiP ~ uniform(0, 0.3);
+  nega ~ uniform(0, 5);
   tau ~ uniform(0.1, 22);
   gamma ~ uniform(0.5, 1);
   prior ~ uniform(0, 65);
@@ -98,7 +98,7 @@ model {
         action = 1; // wait
       }
       values[1] = Qwaits[i, tIdx] * tau;
-      values[2] = Vitis[tIdx] * tau * gamma;
+      values[2] = Vitis[tIdx] * tau;
       //action ~ categorical_logit(values);
       target += categorical_logit_lpmf(action | values);
     } 
@@ -121,7 +121,7 @@ generated quantities {
         action = 1; // wait
       }
       values[1] = Qwaits[i, tIdx] * tau;
-      values[2] = Vitis[tIdx] * tau * gamma;
+      values[2] = Vitis[tIdx] * tau;
       log_lik[no] =categorical_logit_lpmf(action | values);
       no = no + 1;
     }
