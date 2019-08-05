@@ -29,7 +29,7 @@ loadAllData = function() {
     ID[i] = id
     cbal[i] = as.double(substr(junk[[1]][1], 7, 7))
   }
-  hdrData = data.frame(ID = factor(ID), cbal = cbal, stringsAsFactors = F)
+  hdrData = data.frame(ID = ID, cbal = cbal, stringsAsFactors = F)
   
   # define column names 
   colNames = c('blockNum', 'trialNum', 'trialStartTime', 'nKeyPresses', 'scheduledWait',
@@ -85,7 +85,7 @@ loadExpPara = function(paraNames, dirName){
     address = sprintf("%s/%s", dirName, fileName)
     junk = read.csv(address, header = F)
     idIndexs = str_locate(fileName, "s[0-9]+")
-    idList[i] = as.double(substr(fileName, idIndexs[1]+1, idIndexs[2]))
+    idList[i] = substr(fileName, idIndexs[1]+1, idIndexs[2])
     # delete the lp__ in the old version
     if(nrow(junk) > nE){
       junk = junk[1:nE,]

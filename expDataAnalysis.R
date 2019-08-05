@@ -27,7 +27,7 @@ cat('Analyzing data for',n,'subjects.\n')
 nBlock = 2
 
 # control which individual-level plots to generate
-plotTrialwiseData = T
+plotTrialwiseData = F
 plotKMSC = F
 plotWTW = F
 
@@ -120,6 +120,7 @@ for (sIdx in 1 : n) {
 
 # save data
 blockData = data.frame(id = rep(allIDs, each = nBlock), blockNum = rep( t(1 : nBlock), n),
+                       cbal = rep(hdrData$cbal,each = 2),
                        condition = factor(conditions, levels = c("Rising", "Falling")),
                        AUC = AUC, wtwEarly = wtwEarly,totalEarnings = totalEarnings,
                        nAction = nAction, stdQuitTime = stdQuitTime, cvQuitTime = cvQuitTime,
@@ -137,6 +138,26 @@ save(blockData, file = 'genData/expDataAnalysis/blockData.RData')
 #   readline(prompt = paste('subject',thisID, '(hit ENTER to continue)'))
 #   graphics.off()
 # }
+
+# demonstrate the optimism bias
+data.frame(diff = blockData$AUC[blockData$condition == "Falling"] -
+             blockData$AUC[blockData$condition == "Rising"],
+           cbal = factor(blockData$cbal[blockData$condition == "Falling"],
+                         labels = c("Rise-Fall", "Fall-Rise"))) %>% 
+  ggplot(aes(x = cbal, y = diff)) + geom_boxplot() +
+  stat_compare_means(comparisons = list(c("Rise-Fall", "Fall-Rise")),
+                     aes(label = ..p.signif..), label.x = 1.5, symnum.args= symnum.args,
+                     bracket.size = 1, size = 6) + ylim(c(-30, 30)) +
+  xlab("") + ylab("Fall - Rise (s)") + myTheme
+ggsave(sprintf("figures/expDataAnalysis/optimism.png"), width = 4, height = 3)
+  
+
+blockData %>% 
+  mutate(cbal = factor(blockData$cbal,
+                       labels = c("Rise-Fall", "Fall-Rise"))) %>%
+  ggplot(aes(condition, AUC)) + geom_boxplot() +
+  facet_grid(~cbal) + myTheme
+ggsave(sprintf("figures/expDataAnalysis/AUC_cond.png"), width = 4, height = 3)
 
 # plot AUC in two conditions
 library("ggpubr")

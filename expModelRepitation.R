@@ -1,6 +1,7 @@
 expModelRepitation = function(modelName){
   isTrun = T
   library("ggplot2") 
+  library("ggpubr")
   library("dplyr")
   library("tidyr")
   source("subFxs/plotThemes.R")
@@ -19,25 +20,21 @@ expModelRepitation = function(modelName){
   # load trialData since we need scheduledWait 
   allData = loadAllData()
   hdrData = allData$hdrData 
-  expTrialData = allData$trialData       
+  trialData = allData$trialData       
   ids = hdrData$ID 
   nSub = length(ids)
-  
-  
   
   # re-simulate data
   dir.create("figures/expModelRepitation")
   dir.create(sprintf("figures/expModelRepitation/%s",modelName))
   thisRep = modelRepitation(modelName, summaryData, expTrialData, nComb) # set seeds indise
-  
-  
-  
+
   # initialize 
   expPara = thisRep$expPara
   repTrialData = thisRep$repTrialData
   
   paraNames = getParaNames(modelName)
-  useID = factor(getUseID(expPara, paraNames), levels = levels(hdrData$ID))
+  useID = getUseID(expPara, paraNames)
   repNo = thisRep$repNo
   nSub =(length(useID))
   AUCRep_ = matrix(NA, nrow = nComb , ncol = nSub * nBlock)
@@ -48,7 +45,7 @@ expModelRepitation = function(modelName){
   for(sIdx in 1 : nSub){
     # prepare inputs
     id = useID[[sIdx]]
-    label = sprintf("sub%d", id)
+    label = sprintf("sub%s", id)
     kmOnGridMatrix = matrix(NA, nrow = length(kmGrid), ncol = nComb)
     for(cIdx in 1 : nComb){
       thisRepTrialData = repTrialData[[repNo[cIdx, which(expPara$id == id)]]]
@@ -65,6 +62,7 @@ expModelRepitation = function(modelName){
     kmOnGridRep_[[noIdx]] = kmOnGridMatrix
   }
   
+
   # compare emipirical and reproduced AUC
   muAUCRep = apply(AUCRep_, MARGIN = 2, mean);stdAUCRep = apply(AUCRep_, MARGIN = 2, sd)
   minAUCRep = muAUCRep - stdAUCRep;maxAUCRep = muAUCRep + stdAUCRep
@@ -92,6 +90,19 @@ expModelRepitation = function(modelName){
     ylab("Model-generated (s)") + xlab("Observed (s)") + ggtitle(sprintf("Average WTW, n = %d", length(useID))) +
     myThemeBig + theme(plot.title = element_text(face = "bold", hjust = 0.5))
   fileName = sprintf("figures/expModelRepitation/%s/AUC_AUCRep2.png", modelName)
+  ggsave(filename = fileName,  width = 6, height = 4)
+  
+  # try the difference
+  data.frame(diff = muAUCRep[blockData$condition == "Falling"] -
+               muAUCRep[blockData$condition == "Rising"],
+             cbal = factor(blockData$cbal[blockData$condition == "Falling"],
+                           labels =c("Rise-Fall", "Fall-Rise")))%>%
+    ggplot(aes(cbal, diff)) + geom_boxplot() +
+    stat_compare_means(comparisons = list(c("Rise-Fall", "Fall-Rise")),
+                       aes(label = ..p.signif..), label.x = 1.5, symnum.args= symnum.args,
+                       bracket.size = 1, size = 6) + ylim(c(-30, 30)) +
+    xlab("") + ylab("Fall - Rise (s)") + myTheme
+  fileName = sprintf("figures/expModelRepitation/%s/optimism.png", modelName)
   ggsave(filename = fileName,  width = 6, height = 4)
   
   # Icompare emipirical and reproduced stdWtW

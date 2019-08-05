@@ -19,7 +19,8 @@ modelRepitation = function(modelName, summaryData, trialData,  nComb, blockNum){
   paraNames = getParaNames(modelName)
   parentDir ="genData/expModelFitting"; dirName = sprintf("%s/%sdb",parentDir, modelName)
   expPara = loadExpPara(paraNames, dirName)
-  ids = factor(expPara$id, levels = levels(hdrData$ID)); nSub = length(ids)
+  ids = expPara$id
+  nSub = length(ids)
   
   # initialize outputs
   repTrialData = vector(length = nSub * nComb, mode ='list')
@@ -93,7 +94,7 @@ QL1 = function(paras, condition, scheduledWait, scheduledReward, blockNum){
     thisScheduledWait = scheduledWait[tIdx]
     while(t <= nTimeStep){
       # determine At
-      pWait =  1 / sum(1  + exp((Viti * gamma - Qwait[t])* tau))
+      pWait =  1 / sum(1  + exp((Viti - Qwait[t])* tau))
       action = ifelse(runif(1) < pWait, 'wait', 'quit')
       # observe St+1 and Rt+1
       rewardOccur = thisScheduledWait <= (t * stepDuration) && thisScheduledWait > ((t-1) * stepDuration)
@@ -148,7 +149,7 @@ QL1 = function(paras, condition, scheduledWait, scheduledReward, blockNum){
 
 QL2 = function(paras, condition, scheduledWait, scheduledReward, blockNum){
   # parse paras
-  phi = paras[1]; phiP = paras[2]; tau = paras[3]; gamma = paras[4]; prior = paras[5]
+  phi = paras[1]; nega = paras[2]; tau = paras[3]; gamma = paras[4]; prior = paras[5]
   
   # prepare inputs
   nTrial = length(scheduledWait)
@@ -179,7 +180,7 @@ QL2 = function(paras, condition, scheduledWait, scheduledReward, blockNum){
     thisScheduledWait = scheduledWait[tIdx]
     while(t <= nTimeStep){
       # determine At
-      pWait =  1 / sum(1  + exp((Viti*gamma - Qwait[t])* tau))
+      pWait =  1 / sum(1  + exp((Viti - Qwait[t])* tau))
       action = ifelse(runif(1) < pWait, 'wait', 'quit')
       # observe St+1 and Rt+1
       rewardOccur = thisScheduledWait <= (t * stepDuration) && thisScheduledWait > ((t-1) * stepDuration)
@@ -208,18 +209,18 @@ QL2 = function(paras, condition, scheduledWait, scheduledReward, blockNum){
         if(nextReward > 0){
           Qwait[1 : (T-1)] = Qwait[1 : (T-1)] + phi*(returns[1 : (T-1)] - Qwait[1 : (T-1)])
         }else{
-          Qwait[1 : (T-1)] = Qwait[1 : (T-1)] + phiP*(returns[1 : (T-1)] - Qwait[1 : (T-1)])
+          Qwait[1 : (T-1)] = Qwait[1 : (T-1)] + phi * nega * (returns[1 : (T-1)] - Qwait[1 : (T-1)])
         }
       }else{
         if(T > 2){
           targets[1 : (T-2), tIdx] = returns[1 : (T-2)]
           deltas[1 : (T-2), tIdx] = returns[1 : (T-2)] - Qwait[1 : (T-2)]
-          Qwait[1 : (T-2)] = Qwait[1 : (T-2)] + phiP*(returns[1 : (T-2)] - Qwait[1 : (T-2)])
+          Qwait[1 : (T-2)] = Qwait[1 : (T-2)] + phi * nega * (returns[1 : (T-2)] - Qwait[1 : (T-2)])
         }
       }
       # update Viti
       delta = gamma^(iti / stepDuration) * returns[1] - Viti
-      Viti = ifelse(nextReward > 0, Viti + phi * delta, Viti + phiP * delta)
+      Viti = ifelse(nextReward > 0, Viti + phi * delta, Viti + phi * nega * delta)
       # record updated values
       Qwaits[,tIdx + 1] = Qwait
       Vitis[tIdx + 1] = Viti
@@ -270,7 +271,7 @@ RL1 = function(paras, condition, scheduledWait, scheduledReward, blockNum){
     thisScheduledWait = scheduledWait[tIdx]
     while(t <= nTimeStep){
       # determine At
-      pWait =  1 / sum(1  + exp((Viti -reRate - Qwait[t])* tau))
+      pWait =  1 / sum(1  + exp((Viti - Qwait[t])* tau))
       action = ifelse(runif(1) < pWait, 'wait', 'quit')
       # observe St+1 and Rt+1
       rewardOccur = thisScheduledWait <= (t * stepDuration) && thisScheduledWait > ((t-1) * stepDuration)
@@ -328,8 +329,8 @@ RL1 = function(paras, condition, scheduledWait, scheduledReward, blockNum){
 
 RL2 = function(paras, condition, scheduledWait, scheduledReward, blockNum){
   # parse para
-  phi = paras[1]; phiP = paras[2]; tau = paras[3]; prior = paras[4]
-  beta = paras[5]; betaP = paras[6]
+  phi = paras[1]; nega = paras[2]; tau = paras[3]; prior = paras[4]
+  beta = paras[5]
   
   # prepare inputs
   nTrial = length(scheduledWait)
@@ -361,7 +362,7 @@ RL2 = function(paras, condition, scheduledWait, scheduledReward, blockNum){
     thisScheduledWait = scheduledWait[tIdx]
     while(t <= nTimeStep){
       # determine At
-      pWait =  1 / sum(1  + exp((Viti -reRate - Qwait[t])* tau))
+      pWait =  1 / sum(1  + exp((Viti - Qwait[t])* tau))
       action = ifelse(runif(1) < pWait, 'wait', 'quit')
       # observe St+1 and Rt+1
       rewardOccur = thisScheduledWait <= (t * stepDuration) && thisScheduledWait > ((t-1) * stepDuration)
@@ -390,21 +391,21 @@ RL2 = function(paras, condition, scheduledWait, scheduledReward, blockNum){
         if(nextReward > 0){
           Qwait[1 : (T-1)] = Qwait[1 : (T-1)] + phi*(returns[1 : (T-1)] - Qwait[1 : (T-1)])
         }else{
-          Qwait[1 : (T-1)] = Qwait[1 : (T-1)] + phiP*(returns[1 : (T-1)] - Qwait[1 : (T-1)])
+          Qwait[1 : (T-1)] = Qwait[1 : (T-1)] + phi * nega * (returns[1 : (T-1)] - Qwait[1 : (T-1)])
         }
         
       }else{
         if(T > 2){
           targets[1 : (T-2), tIdx] = returns[1 : (T-2)]
           deltas[1 : (T-2), tIdx] = returns[1 : (T-2)] - Qwait[1 : (T-2)]
-          Qwait[1 : (T-2)] = Qwait[1 : (T-2)] + phiP*(returns[1 : (T-2)] - Qwait[1 : (T-2)])
+          Qwait[1 : (T-2)] = Qwait[1 : (T-2)] + phi * nega * (returns[1 : (T-2)] - Qwait[1 : (T-2)])
         }
       }
       # update Viti
       delta = (returns[1] - reRate * (iti / stepDuration) - Viti)
-      Viti = ifelse(nextReward > 0, Viti + phi * delta, Viti + phiP* delta)
+      Viti = ifelse(nextReward > 0, Viti + phi * delta, Viti + phi * nega * delta)
       # update reRate 
-      reRate = ifelse(nextReward > 0, reRate + beta * delta, reRate + betaP* delta)   
+      reRate = ifelse(nextReward > 0, reRate + beta * delta, reRate + beta * nega * delta)   
       # record updated values
       Qwaits[,tIdx + 1] = Qwait
       Vitis[tIdx + 1] = Viti
