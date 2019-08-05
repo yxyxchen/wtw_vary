@@ -1,16 +1,12 @@
 library("stringr")
 getParaNames = function(modelName){
   if(modelName == "QL1") paraNames = c("phi", "tau", "gamma", "prior")
-  else if(modelName == "QL2") paraNames = c("phi", "phiP", "tau", "gamma", "prior")
+  else if(modelName == "QL2") paraNames = c("phi", "nega", "tau", "gamma", "prior")
   else if(modelName == "RL1") paraNames = c("phi", "tau", "prior", "beta")
-  else if(modelName =="RL2") paraNames = c("phi", "phiP", "tau", "prior", "beta", "betaP")
+  else if(modelName =="RL2") paraNames = c("phi", "nega", "tau", "prior", "beta")
   else if(modelName == "BL") paraNames = c("pWait")
-  else if(grepl("RD[0-9]", modelName)){
-    deleteIdx = as.double(substr(modelName, nchar(modelName), nchar(modelName)))
-    paraNames = c("phi", "phiP", "tau", "prior", "beta", "betaP")
-    paraNames = paraNames[-deleteIdx]
-  }
   else return("wrong model name")
+  return(paraNames)
 }
 
 getUseID = function(expPara, paraNames){

@@ -36,7 +36,7 @@ expModelFitting = function(modelName){
   allData = loadAllData()
   hdrData = allData$hdrData           
   trialData = allData$trialData       
-  ids = hdrData$ID            
+  ids = hdrData$ID          
   nSub = length(ids)                    
   
   originalFile = sprintf("genData/expModelFitting/%s", modelName)
