@@ -43,7 +43,7 @@ QL1 = function(paras, cond, trialEarnings, timeWaited){
     # calculate likelyhood
     nextReward = trialEarnings[tIdx]
     getReward = ifelse(nextReward != 0, T, F)
-    lik_[,tIdx] =  sapply(1 : nTimeStep, function(i) 1 / sum(1  + exp((gamma * Viti - Qwait[i])* tau)))
+    lik_[,tIdx] =  sapply(1 : nTimeStep, function(i) 1 / sum(1  + exp((Viti - Qwait[i])* tau)))
     # update action values 
     T = Ts[tIdx]
     if(tIdx < nTrial){
@@ -80,7 +80,7 @@ QL1 = function(paras, cond, trialEarnings, timeWaited){
 
 QL2 = function(paras, cond, trialEarnings, timeWaited){
   # parse paras
-  phi = paras[1]; phiP = paras[2]; tau = paras[3]; gamma = paras[4]; prior = paras[5]
+  phi = paras[1]; nega = paras[2]; tau = paras[3]; gamma = paras[4]; prior = paras[5]
   
   # prepare inputs
   nTrial = length(trialEarnings)
@@ -110,7 +110,7 @@ QL2 = function(paras, cond, trialEarnings, timeWaited){
     # calculate likelyhood
     nextReward = trialEarnings[tIdx]
     getReward = ifelse(nextReward != 0, T, F)
-    lik_[,tIdx] =  sapply(1 : nTimeStep, function(i) 1 / sum(1  + exp((gamma * Viti - Qwait[i])* tau)))
+    lik_[,tIdx] =  sapply(1 : nTimeStep, function(i) 1 / sum(1  + exp((Viti - Qwait[i])* tau)))
     # update action values 
     T = Ts[tIdx]
     if(tIdx < nTrial){
@@ -121,19 +121,19 @@ QL2 = function(paras, cond, trialEarnings, timeWaited){
         if(nextReward > 0){
           Qwait[1 : (T-1)] = Qwait[1 : (T-1)] + phi*(returns[1 : (T-1)] - Qwait[1 : (T-1)])
         }else{
-          Qwait[1 : (T-1)] = Qwait[1 : (T-1)] + phiP*(returns[1 : (T-1)] - Qwait[1 : (T-1)])
+          Qwait[1 : (T-1)] = Qwait[1 : (T-1)] + phi * nega * (returns[1 : (T-1)] - Qwait[1 : (T-1)])
         }
         
       }else{
         if(T > 2){
           targets[1 : (T-2), tIdx] = returns[1 : (T-2)]
           deltas[1 : (T-2), tIdx] = returns[1 : (T-2)] - Qwait[1 : (T-2)]
-          Qwait[1 : (T-2)] = Qwait[1 : (T-2)] + phiP*(returns[1 : (T-2)] - Qwait[1 : (T-2)])
+          Qwait[1 : (T-2)] = Qwait[1 : (T-2)] + phi * nega * (returns[1 : (T-2)] - Qwait[1 : (T-2)])
         }
       }
       # update Viti
       delta = gamma^(iti / stepDuration) * returns[1] - Viti
-      if(nextReward > 0) Viti = Viti + phi* delta else Viti = Viti + phiP* delta
+      if(nextReward > 0) Viti = Viti + phi* delta else Viti = Viti + phi * nega * delta
       
       # record action values
       Qwaits[,tIdx + 1] = Qwait
@@ -184,7 +184,7 @@ RL1 = function(paras, cond, trialEarnings, timeWaited){
     # calculate likelyhood
     nextReward = trialEarnings[tIdx]
     getReward = ifelse(nextReward != 0, T, F)
-    lik_[,tIdx] =  sapply(1 : nTimeStep, function(i) 1 / sum(1  + exp((Viti - reRate- Qwait[i])* tau)))
+    lik_[,tIdx] =  sapply(1 : nTimeStep, function(i) 1 / sum(1  + exp((Viti - Qwait[i])* tau)))
     
     # update values 
     T = Ts[tIdx]
@@ -225,8 +225,8 @@ RL1 = function(paras, cond, trialEarnings, timeWaited){
 
 RL2 = function(paras, cond, trialEarnings, timeWaited){
   # parse para
-  phi = paras[1]; phiP = paras[2]; tau = paras[3]; prior = paras[4]
-  beta = paras[5]; betaP = paras[6]
+  phi = paras[1]; nega = paras[2]; tau = paras[3]; prior = paras[4]
+  beta = paras[5]
   
   # prepare inputs
   nTrial = length(trialEarnings)
@@ -258,7 +258,7 @@ RL2 = function(paras, cond, trialEarnings, timeWaited){
     # calculate likelyhood
     nextReward = trialEarnings[tIdx]
     getReward = ifelse(nextReward != 0, T, F)
-    lik_[,tIdx] =  sapply(1 : nTimeStep, function(i) 1 / sum(1  + exp((Viti - reRate- Qwait[i])* tau)))
+    lik_[,tIdx] =  sapply(1 : nTimeStep, function(i) 1 / sum(1  + exp((Viti - Qwait[i])* tau)))
     
     # update values 
     T = Ts[tIdx]
@@ -270,21 +270,21 @@ RL2 = function(paras, cond, trialEarnings, timeWaited){
         if(nextReward > 0){
           Qwait[1 : (T-1)] = Qwait[1 : (T-1)] + phi*(returns[1 : (T-1)] - Qwait[1 : (T-1)])
         }else{
-          Qwait[1 : (T-1)] = Qwait[1 : (T-1)] + phiP*(returns[1 : (T-1)] - Qwait[1 : (T-1)])
+          Qwait[1 : (T-1)] = Qwait[1 : (T-1)] + phi * nega *(returns[1 : (T-1)] - Qwait[1 : (T-1)])
         }
         
       }else{
         if(T > 2){
           targets[1 : (T-2), tIdx] = returns[1 : (T-2)]
           deltas[1 : (T-2), tIdx] = returns[1 : (T-2)] - Qwait[1 : (T-2)]
-          Qwait[1 : (T-2)] = Qwait[1 : (T-2)] + phiP*(returns[1 : (T-2)] - Qwait[1 : (T-2)])
+          Qwait[1 : (T-2)] = Qwait[1 : (T-2)] + phi * nega * (returns[1 : (T-2)] - Qwait[1 : (T-2)])
         }
       }
       # update Viti
       delta = (returns[1] - reRate * (iti / stepDuration) - Viti)
-      Viti = ifelse(nextReward > 0, Viti + phi * delta, Viti + phiP * delta)
+      Viti = ifelse(nextReward > 0, Viti + phi * delta, Viti + phi * nega * delta)
       # update reRate 
-      reRate = ifelse(nextReward > 0, reRate + beta * delta, reRate + betaP * delta) 
+      reRate = ifelse(nextReward > 0, reRate + beta * delta, reRate + beta * nega * delta) 
       # record action values
       Qwaits[,tIdx + 1] = Qwait
       Vitis[tIdx + 1] = Viti

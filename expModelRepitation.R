@@ -27,7 +27,7 @@ expModelRepitation = function(modelName){
   # re-simulate data
   dir.create("figures/expModelRepitation")
   dir.create(sprintf("figures/expModelRepitation/%s",modelName))
-  thisRep = modelRepitation(modelName, summaryData, expTrialData, nComb) # set seeds indise
+  thisRep = modelRepitation(modelName, summaryData, trialData, nComb) # set seeds indise
 
   # initialize 
   expPara = thisRep$expPara
@@ -182,6 +182,5 @@ expModelRepitation = function(modelName){
   #   }
   # }
   # 
-  
 }
 

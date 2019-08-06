@@ -26,7 +26,7 @@ for(i in 1 : nModel){
   modelName = modelNames[i]
   paraNames = getParaNames(modelName)
   expPara = loadExpPara(paraNames, sprintf("genData/expModelFitting/%sdb", modelName))
-  useID_[[i]] = factor(getUseID(expPara, paraNames), levels = levels(hdrData$ID))
+  useID_[[i]] = getUseID(expPara, paraNames)
 }
 useID = idList[apply(sapply(1 : nModel, function(i )idList %in% useID_[[i]]), MARGIN = 1,
               all)]
