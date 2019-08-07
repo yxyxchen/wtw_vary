@@ -40,6 +40,8 @@ expModelRepitation = function(modelName){
   AUCRep_ = matrix(NA, nrow = nComb , ncol = nSub * nBlock)
   stdWdRep_ = matrix(NA, nrow = nComb, ncol = nSub * nBlock)
   kmOnGridRep_ = vector(mode = "list", length = nSub * nBlock)
+  ks_ = matrix(NA, nrow = nComb , ncol = nSub * nBlock)
+  dist_ = matrix(NA, nrow = nComb , ncol = nSub * nBlock)
   plotKMSC = F
   
   for(sIdx in 1 : nSub){
@@ -57,11 +59,19 @@ expModelRepitation = function(modelName){
         AUCRep_[cIdx,noIdx] = kmscResults[['auc']]
         stdWdRep_[cIdx, noIdx] = kmscResults$stdWd
         kmOnGridMatrix[,cIdx] = kmscResults$kmOnGrid
+        junk = ks.test(kmscResults$kmOnGrid,
+                       kmOnGrid_[[which(ids == id) * 2 - 2 +  bkIdx]])
+        ks_[cIdx, noIdx] = as.numeric(junk$statistic)
+        dist_[cIdx, noIdx] = sum((thisRepTrialData$timeWaited - thisRepTrialData$timeWaited)^2)
       }
     }
     kmOnGridRep_[[noIdx]] = kmOnGridMatrix
   }
   
+  # save ks_
+  dir.create("genData/expModelRepitation")
+  dir.create(sprintf("genData/expModelRepitation/%s", modelName))
+  save("dist_", "ks_", file = sprintf("genData/expModelRepitation/%s/compare.RData", modelName))  
 
   # compare emipirical and reproduced AUC
   muAUCRep = apply(AUCRep_, MARGIN = 2, mean);stdAUCRep = apply(AUCRep_, MARGIN = 2, sd)

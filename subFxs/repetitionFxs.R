@@ -423,7 +423,7 @@ RL2 = function(paras, condition, scheduledWait, scheduledReward, blockNum){
   return(outputs)
 }
 
-BL = function(paras, condition, scheduledReward, scheduledWait){
+BL = function(paras, condition, scheduledWait, scheduledReward, blockNum){
   # parse 
   pWait = paras[1]
   
@@ -466,7 +466,7 @@ BL = function(paras, condition, scheduledReward, scheduledWait){
   # return outputs
   outputs = list( 
     "trialNum" = 1 : nTrial, "trialEarnings" = trialEarnings, "timeWaited" = timeWaited,
-    "sellTime" = sellTime, "scheduledWait" = scheduledWait, "condition" = condition
+    "sellTime" = sellTime, "scheduledWait" = scheduledWait, "condition" = condition, "blockNum" = blockNum
   )
   return(outputs)
 }
