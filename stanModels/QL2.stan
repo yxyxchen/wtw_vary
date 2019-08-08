@@ -17,7 +17,7 @@ transformed data {
 }
 parameters {
   real<lower = 0, upper = 0.3> phi;
-  real<lower = 0, upper = 5> nega; 
+  real<lower = 0, upper = min([5, 1 / phi]')> nega; 
   real<lower = 0.1, upper = 22> tau;
   real<lower = 0.5, upper = 1> gamma;
   real<lower = 0, upper = 65> prior; 
@@ -81,7 +81,7 @@ transformed parameters{
 }
 model {
   phi ~ uniform(0, 0.3);
-  nega ~ uniform(0, 5);
+  nega ~ uniform(0, min([5, 1 / phi]'));
   tau ~ uniform(0.1, 22);
   gamma ~ uniform(0.5, 1);
   prior ~ uniform(0, 65);

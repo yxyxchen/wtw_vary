@@ -17,10 +17,10 @@ transformed data {
 }
 parameters {
   real<lower = 0, upper = 0.3> phi;
-  real<lower = 0, upper = 5> nega; 
+  real<lower = 0, upper = 0.3> beta;
+  real<lower = 0, upper = min([5, 1 / phi, 1 / beta]')> nega; 
   real<lower = 0.1, upper = 22> tau;
   real<lower = 0, upper = 65> prior; 
-  real<lower = 0, upper = 0.3> beta;
 }
 transformed parameters{
   // initialize action values 
@@ -96,10 +96,10 @@ transformed parameters{
 }
 model {
   phi ~ uniform(0, 0.3);
-  nega ~ uniform(0, 5);
+  beta ~ uniform(0, 0.3);
+  nega ~ uniform(0, min([5, 1 / phi, 1 / beta]'));
   tau ~ uniform(0.1, 22);
   prior ~ uniform(0, 65);
-  beta ~ uniform(0, 0.3);
   // calculate the likelihood 
   for(tIdx in 1 : N){
     int action;
