@@ -63,7 +63,7 @@ expModelFitting = function(modelName){
   # load cvPara
   # enter the refit stage
   nLoop = 1
-  while(nLoop < 15){
+  while(nLoop < 2){
     cvPara = loadCVPara(paraNames, sprintf("genData/expModelFittingCV/%sdb", modelName),
                         "*_summary.txt")
     idsCV = cvPara$id
@@ -118,6 +118,17 @@ expModelFitting = function(modelName){
                                  id),header = F)
         low= tempt[1:nPara,4]
         up = tempt[1 : nPara,8]
+        lowLimits = sapply(1 : nPara, function(i) ifelse(paraNames[i] == "gamma", 0.7,ifelse(paraNames[i] == "tau", 0.1, 0)))
+        upMatchTable = c(0.3, 5, 22, 1, 0.3, 65);
+        names(upMatchTable) = c("phi", "nega", "tau", "gamma", "beta", "prior")
+        upLimits = sapply(1 : nPara, function(i){
+          paraName = paraNames[i]
+          as.double(upMatchTable[paraName])})
+        if(any(abs(low - up) < 0.03)){
+          closeIdxs = which(abs(low - up) < 0.01)
+          low[closeIdxs] = pmax(lowLimits[closeIdxs], low[closeIdxs] - 0.01)
+          up[closeIdxs] = pmin(upLimits[closeIdxs], up[closeIdxs] + 0.01)
+        }
         converge = modelFittingCVdb(thisTrialData, fileName, paraNames, model, modelName, nPara, low, up)
       }# loop over participants  
       nLoop = nLoop + 1

@@ -157,7 +157,7 @@ modelFittingCVdb = function(thisTrialData, fileName, paraNames, model, modelName
   load("wtwSettings.RData")
   # simulation parameters
   nChain = 4
-  nIter = 5000
+  nIter = 100
   
   # determine wIni, the first change
   subOptimalRatio = 0.9 
