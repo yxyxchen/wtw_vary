@@ -1,4 +1,4 @@
-getSimTrialData = function(){
+getSimTrialData = function(modelName){
   dir.create("genData")
   dir.create("genData/simulation")
   library('ggplot2')
@@ -13,7 +13,6 @@ getSimTrialData = function(){
   source("subFxs/analysisFxs.R") 
   
   # modelName 
-  modelName = "RL2"
   repFun = getRepFun(modelName)
   
   # load expData
@@ -55,14 +54,14 @@ getSimTrialData = function(){
     simTrialData[[id]] = repFun(paras, condition, scheduledWait, scheduledReward, blockNum)
   }
   hdrData$ID = hdrData$ID
-  save(simTrialData, hdrData, file = "genData/simulation/simTrialData.RData")
+  save(simTrialData, hdrData, file = sprintf("genData/simulation/%s.RData", modelName))
 }
 # differences from the cluster version can be found by searching # needed in local computers
-expModelFitting = function(modelName){
+expModelFitting = function(encodeModel, debugModel){
   # create outfiles
   dir.create("genData") 
   dir.create("genData/simModelFitting") 
-  dir.create(sprintf("genData/simModelFitting/%s", modelName))
+  dir.create(sprintf("genData/simModelFitting/%s", debugModel))
   
   #load libraries
   library('plyr'); library(dplyr); library(ggplot2);library('tidyr');
@@ -81,16 +80,16 @@ expModelFitting = function(modelName){
   rstan_options(auto_write = TRUE) 
   
   # compile the stan model 
-  dir.create(sprintf("genData/simModelFitting/%s", modelName))
-  model = stan_model(file = sprintf("stanModels/%s.stan", modelName))
+  dir.create(sprintf("genData/simModelFitting/%s/%s",encodeModel, debugModel))
+  model = stan_model(file = sprintf("stanModels/%s.stan", debugModel))
 
   # load simData
-  load("genData/simulation/simTrialData.RData")
+  load(sprintf("genData/simulation/%s.RData", encodeModel))
   idList = hdrData$ID
   n = length(idList)             
   
   # determine paraNames
-  paraNames = getParaNames(modelName)
+  paraNames = getParaNames(debugModel)
   if(paraNames == "wrong model name"){
     print(paraNames)
     break
@@ -110,7 +109,7 @@ expModelFitting = function(modelName){
     cond = thisTrialData$condition
     scheduledWait = thisTrialData$scheduledWait
     # thisTrialData = block2session(thisTrialData) not needed, since we only use timeWaited and trialEarnings
-    fileName = sprintf("genData/simModelFitting/%s/s%s", modelName, thisID)
-    modelFitting(thisTrialData, fileName, paraNames, model, modelName)
+    fileName = sprintf("genData/simModelFitting/%s/%s/s%s", encodeModel, debugModel, thisID)
+    modelFitting(thisTrialData, fileName, paraNames, model, debugModel)
   }
 }
