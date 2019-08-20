@@ -1,7 +1,7 @@
 # in this dataset, only trials within the 7 mins will be kept. Therefore, we don't need to delete any data
-
+datasetColors = c('#c53932', '#529D3E', '#3976AF')
 # determine whether to truncate data
-isTrun = T
+isTrun = F
 
 # load libraries
 source('subFxs/loadFxs.R') # for loading data 
@@ -173,6 +173,20 @@ dir.create("figures")
 dir.create("figures/expDataAnalysis")
 ggsave(sprintf("figures/expDataAnalysis/zTruc_AUC.png"), width = 4, height = 3)
 
+# plot for sumData
+wTest = wilcox.test( blockData[blockData$condition == "Rising", "AUC"],
+                     blockData[blockData$condition == "Falling", "AUC"], paired = T)
+datasetColors = c('#c53932', '#529D3E', '#3976AF')
+data.frame(HPAUC = blockData$AUC[blockData$condition == 'Rising'],
+           LPAUC = blockData$AUC[blockData$condition == 'Falling']) %>% 
+  ggplot(aes(LPAUC, HPAUC))  + geom_point(shape = 21, size = 4, colour = "black", fill = datasetColors[3]) +
+  geom_abline(intercept = 0, slope = 1) +
+  xlim(c(0, min(tMaxs)))+ ylim(c(0, min(tMaxs))) +
+  xlab("LP AUC (s)") + ylab("HP AUC (s)") +
+  annotate("text", x = 12, y = 3, label = sprintf('p < 0.001***', wTest$p.value))+
+  sumTheme
+ggsave("figures/expDataAnalysis/zTruc_AUC_Cmp_sum.eps", width = 4, height = 3) 
+  
 # plot wtw 
 # select = (blockData$blockNum == 2)
 select = rep(T, n * nBlock)
@@ -192,6 +206,21 @@ plotData %>% ggplot(aes(time, mean, color = condition, fill = condition)) +
   myTheme + ylim(c(7, 18))
 ggsave("figures/expDataAnalysis/zTruc_wtw_timecourse.png", width = 6, height = 3)
 
+# sum WTW
+tempt = vector(length = nrow(plotData))
+tempt[plotData$condition == "Rising"] = "HP"
+tempt[plotData$condition == "Falling"] = "LP"
+policy = data.frame(cond= c("HP", "LP"), wt = unlist(optimWaitTimes))
+plotData %>% mutate(cond = factor(condition, levels = conditions, labels = c('HP', 'LP'))) %>%
+  ggplot(aes(time, mean)) +
+  geom_ribbon(aes(ymin=min, ymax=max),fill = '#a6bddb', colour= '#a6bddb') +
+  geom_line(size = 1, color = datasetColors[3]) + facet_wrap(~cond, scales = "free")  +
+  xlab("Cumulative task time (min)") +
+  scale_x_continuous(breaks = seq(0, max(tGrid), by = 60 * 5),
+                     labels = paste(seq(0, 10, by = 5))) + 
+  ylab("WTW (s)") +
+  sumTheme + ylim(c(7, 18))
+ggsave("figures/expDataAnalysis/zTruc_wtw_timecourse.eps", width = 6, height = 3)
 # plot survival curve
 condition =  rep(blockData$condition)
 data.frame(kmsc = unlist(kmOnGrid_), time = rep(kmGrid, n * nBlock),
