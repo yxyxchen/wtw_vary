@@ -220,7 +220,7 @@ plotData %>% mutate(cond = factor(condition, levels = conditions, labels = c('HP
                      labels = paste(seq(0, 10, by = 5))) + 
   ylab("WTW (s)") +
   sumTheme + ylim(c(7, 18))
-ggsave("figures/expDataAnalysis/zTruc_wtw_timecourse.eps", width = 6, height = 3)
+ggsave("figures/expDataAnalysis/zTruc_wtw_timecourse.eps", width = 6, height = 2)
 # plot survival curve
 condition =  rep(blockData$condition)
 data.frame(kmsc = unlist(kmOnGrid_), time = rep(kmGrid, n * nBlock),
