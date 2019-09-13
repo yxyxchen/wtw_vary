@@ -43,3 +43,13 @@ expPara %>% filter(id %in% useID) %>% select(c(paraNames)) %>%
   gather(key = "para", value = "value") %>%
   mutate(para = factor(para, levels = paraNames, labels = paraNames ))%>% 
   group_by(para) %>% summarise(mu = mean(value), median = median(value))
+
+load('genData/expDataAnalysis/blockData.RData')
+expPara$nQuit = blockData$nQuit[1 : 80 %% 2 == 0] + blockData$nQuit[1 : 80 %% 2 == 1]
+wilcox.test(expPara$nega[expPara$nQuit >= 10] - 1)
+expPara %>% filter(nQuit >= 10) %>%ggplot(aes(nega)) + geom_histogram(bins = 10) +
+  geom_vline(xintercept = 1) + myTheme 
+ggsave(sprintf('figures/expParaAnalysis/optimism_%s.png', modelName),
+       width = 4, height = 4)
+
+median(expPara$nega[expPara$nQuit >= 10])

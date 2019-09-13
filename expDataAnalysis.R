@@ -33,6 +33,7 @@ plotWTW = F
 
 # initialize outputs, organised by block
 AUC = numeric(length =n * nBlock)
+AUC2 = numeric(length =n * nBlock)
 conditions = vector(length =n * nBlock)
 totalEarnings =  numeric(length =n * nBlock)
 nExclude =  numeric(length =n * nBlock)
@@ -103,7 +104,9 @@ for (sIdx in 1 : n) {
       readline(prompt = paste('subject',thisID, "block", bkIdx, '(hit ENTER to continue)'))
       graphics.off()
     }
-
+    
+    kmscResults = kmsc(thisTrialData[thisTrialData$sellTime >= blockSecs / 3 * 2,],min(tMaxs),label,plotKMSC, kmGrid)
+    AUC2[noIdx] = kmscResults[['auc']]
     # WTW time series
     wtwCeiling = min(tMaxs)
     wtwtsResults = wtwTS(thisTrialData, tGrid, wtwCeiling, label, plotWTW)
@@ -125,10 +128,16 @@ blockData = data.frame(id = rep(allIDs, each = nBlock), blockNum = rep( t(1 : nB
                        AUC = AUC, wtwEarly = wtwEarly,totalEarnings = totalEarnings,
                        nAction = nAction, stdQuitTime = stdQuitTime, cvQuitTime = cvQuitTime,
                        muQuitTime = muQuitTime, nQuit = nQuit, nTrial = nTrial, stdWd = stdWd, cvWd = cvWd,
-                       nExclude = nExclude)
+                       nExclude = nExclude,  AUC2 = AUC2)
 save(kmOnGrid_, file = 'genData/expDataAnalysis/kmOnGridBlock.RData')
 save(blockData, file = 'genData/expDataAnalysis/blockData.RData')
-
+sumData = blockData
+condition = vector(length = length(blockData$AUC))
+condition[blockData$condition == 'Rising'] = "HP"
+condition[blockData$condition == 'Falling'] = 'LP'
+sumData$condition = factor(condition, levels = c('HP', 'LP'))
+save('sumData', file = 'genData/expDataAnalysis/sumData.RData')
+save('timeWTW_', file = 'genData/expDataAnalysis/timeWTW.RData')
 # descriptive statistics for individual subjects and blocks
 # for (sIdx in 1 : n) {
 #   thisID = allIDs[sIdx]

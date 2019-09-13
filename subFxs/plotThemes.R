@@ -20,12 +20,12 @@ displayTheme = theme(panel.background = element_rect(fill = "white",colour = "wh
   theme(legend.text=element_text(size= 15))
 
 myTheme = theme_linedraw() +
-  theme(legend.title = element_blank(), panel.grid.major = element_blank(),
+  theme(legend.position = 'none', panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(), text=element_text(face = "bold", size = 18),
         panel.border = element_rect(size = 1.5))
 
 myThemeBig = theme_linedraw() +
-  theme(legend.title = element_blank(), panel.grid.major = element_blank(),
+  theme(legend.position = 'none', panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(), text=element_text(face = "bold", size = 23),
         panel.border = element_rect(size = 1.5))
 
