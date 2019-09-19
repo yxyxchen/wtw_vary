@@ -1,78 +1,51 @@
-# this script contains helper analysis functions 
-library(coin)
-load("wtwSettings.RData")
-# check the distribution of scheduled delays
-# ...as measured in number of key presses (for the instrumental version of the task)
-scheduledDelays <- function(blockData,label) {
-  cat(sprintf('Scheduled delays for %s\n',blockLabel))
-  bkDelays = blockData$scheduledWait
-  print(summary(bkDelays))
-  # empirical cumulative distribution of scheduled delays
-  fn <- ecdf(blockData$scheduledWait)
-  plot(fn, main = sprintf('Scheduled delays: %s',blockLabel), xlab='Scheduled delay (s)',
-       ylab='Cumulative proportion', xlim=c(0,30))
-  # autocorrelation function
-  # acfOutput <- acf(bkDelays, lag.max=20, main = sprintf('Scheduled delays: %s',blockLabel))
-}
-
-
-# plot trialwise responses in detail
-trialPlots <- function(thisTrialData,label = " ") {
-  # change the trialNum to accumulated trialNum if needed
-  if(length(unique(thisTrialData$blockNum)) > 1){
-    nBlock = length(unique(thisTrialData$blockNum))
-    nTrials = sapply(1 : nBlock, function(i) sum(thisTrialData$blockNum %in% (1:i)))
-  }
-  # values to be plotted
-  rwdIdx = thisTrialData$trialEarnings != loseValue
-  quitIdx = thisTrialData$trialEarnings == loseValue
-  rwdTrialNo = thisTrialData$trialNum[rwdIdx]
-  quitTrialNo = thisTrialData$trialNum[quitIdx]
-  rwdSchedDelay = thisTrialData$scheduledWait[rwdIdx]
-  quitSchedDelay = thisTrialData$scheduledWait[quitIdx]
-  waitDuration = thisTrialData$timeWaited
-  quitTime = waitDuration[quitIdx]
-  # prepare plotData
-  plotData = data.frame("trialNum" = c(rwdTrialNo, quitTrialNo, quitTrialNo),
-                        "trialDuration" = c(rwdSchedDelay, quitTime, quitSchedDelay),
-                        "condition" = rep(c('reward', 'quit', 'quitSchedule'), time = 
-                                        c(length(rwdTrialNo), length(quitTrialNo),
-                                          length(quitTrialNo))))
-  plotData$condition = factor( plotData$condition, levels = c('reward', 'quit', 'quitSchedule'))
-  # plot the main figure
-  p = ggplot(plotData, aes(trialNum, trialDuration, color = condition)) + geom_point() +
-  geom_line(data = plotData[plotData$condition != 'quitSchedule',],
-            aes(trialNum, trialDuration, color = condition)) +
-    scale_color_manual(values = c('blue', 'red', 'black')) + 
-    xlab('Trial') + ylab('Waiting duration (s)') + ggtitle(label) + myTheme
-  # add block lines if we have multiple blocks 
-  if(length(unique(thisTrialData$blockNum)) > 1){
-    p = p + geom_vline(xintercept = nTrials,  linetype='dashed',
-                   color = "grey", size = 1)
-  }
+# plots a single subject's trial-by-trial data
+trialPlots <- function(thisTrialData) {
+  source('./subFxs/plotThemes.R')
+  nBlock = length(unique(thisTrialData$blockNum))
+  # num of trials in each block
+  nTrials = sapply(1:nBlock, function(i) sum(thisTrialData$blockNum == i))
+  # num of trials accumulated across blocks
+  ac_nTrials = cumsum(nTrials)
+  # ensure timeWaited = scheduledWait on rewarded trials
+  thisTrialData = within(thisTrialData, {timeWaited[trialEarnings!= 0] = scheduledWait[trialEarnings!= 0]})
+  # plot
+  ## blue : timeWaited on rewarded trials
+  ## red : timeWaited on non-rewarded trials
+  ## black : scheduledTime on non-rewarded trials
+  p = thisTrialData %>%
+    ggplot(aes(trialNum, timeWaited,color = factor(trialEarnings))) +
+    geom_point() + geom_line() + scale_color_manual(values = c("red", "blue")) +
+    geom_point(data = thisTrialData[thisTrialData$trialEarnings == 0, ],
+               aes(trialNum, scheduledWait),
+               color = 'black') + 
+    geom_vline(xintercept = head(ac_nTrials, nBlock - 1),
+               color = "grey", linetype = "dashed", size = 2) +
+    xlab("Trial num") + ylab("Time (s)") + 
+    myTheme 
   print(p)
   return(p)
 }
 
 
-# calculate kaplan-meier and area under the curve
-kmsc <- function(thisTrialData,tMax,label='',plotKMSC=FALSE,grid=0) {
+# using kaplan-meier survival analysis to measure:
+# average WTW (area under the curve)
+# std WTW
+kmsc <- function(thisTrialData, tMax, plotKMSC=FALSE, grid) {
   library(survival)
-  waitDuration = thisTrialData$timeWaited
-  quitIdx = (thisTrialData$trialEarnings == loseValue)
-  # for rewarded trials, base the duration on the reward delivery time (not the subsequent response)
-  waitDuration[!quitIdx] <- thisTrialData$scheduledWait[!quitIdx]
-  # fit the survival function
-  kmfit <- survfit(Surv(waitDuration, quitIdx, type='right') ~ 1, 
-                 type='kaplan-meier', conf.type='none', start.time=0, se.fit=FALSE)
-  # extract elements of the survival curve object (?survfit.object)
-  kmT = kmfit$time
-  kmF = kmfit$surv
+  # ensure timeWaited = scheduledWait on rewarded trials
+  thisTrialData = within(thisTrialData, {timeWaited[trialEarnings!= 0] = scheduledWait[trialEarnings!= 0]})
+  # fit a kaplan-meier survival curve
+  kmfit = with(thisTrialData,{
+    survfit(Surv(timeWaited, (trialEarnings == 0), type='right') ~ 1, 
+            type='kaplan-meier', conf.type='none', start.time=0, se.fit=FALSE)
+  })
+  # extract elements of the survival curve object 
+  kmT = kmfit$time # time value 
+  kmF = kmfit$surv # function value
   # add a point at zero, since "kaplan-meier" starts from the first event
-  kmT = c(0, kmT)
+  kmT = c(0, kmT) 
   kmF = c(1, kmF)
   # keep only points up through tMax 
-  # if you use the same tMax for both condition, otherwise you can skip this
   keepIdx = kmT<=tMax
   kmT <- kmT[keepIdx]
   kmF <- kmF[keepIdx]
@@ -82,29 +55,100 @@ kmsc <- function(thisTrialData,tMax,label='',plotKMSC=FALSE,grid=0) {
   kmF <- c(kmF, tail(kmF,1))
   # calculate auc
   auc <- sum(diff(kmT) * head(kmF,-1))
-  kmFmy = kmF
-  kmFmy[length(kmFmy)] = 0
-  # sum(tail(kmT, -1) * diff((1 - kmFmy)))
-  stdWd = sqrt(sum((tail(kmT, -1) - auc)^2 * diff((1 - kmFmy))))
-  
-  # calculate variance
-  # plot if requested
+  # calculate std WTW
+  ## (1-kmF) gives the cdf of WTW
+  cdf_WTW = 1 - kmF
+  ## by adding 1 at the end, we truncate WTW at tMax
+  cdf_WTW = c(cdf_WTW, 1)
+  # calcualte the pdf of WTW
+  pdf_WTW = diff(cdf_WTW)
+  # calculate the std of WTW 
+  varWTW = sum((kmT - auc) ^2 * pdf_WTW)
+  stdWTW = sqrt(varWTW)
+  # plot the k-m survival curve
   if (plotKMSC) {
-   plotData = data.frame(kmT = kmT, kmF = kmF)
-   p = ggplot(plotData, aes(kmT, kmF)) + geom_line() + xlab('Delay (s)') +
+    p = data.frame(kmT = kmT, kmF = kmF) %>%
+      ggplot(aes(kmT, kmF)) + geom_line() + xlab('Delay (s)') +
       ylab('Survival rate') + ylim(c(0,1)) + xlim(c(0,tMax)) +
-        ggtitle(sprintf('KMSC: %s (AUC = %1.1f)',label,auc)) + 
-        displayTheme
-   print(p)
+      ggtitle(sprintf('AUC = %1.1f',auc)) + 
+      myTheme
+    print(p)
   }
-  # put the survival curve on a standard grid
-  kmOnGrid = vector()
-  for (gIdx in 1:length(grid)) {
-    g = grid[gIdx]
-    # use the last point where t is less than or equal to the current grid value
-    kmOnGrid[gIdx] = kmF[max(which(kmT<=g))]
+  # resample the survival curve for averaging 
+  kmOnGrid = resample(kmF, kmT, kmGrid)
+  return(list(kmT=kmT, kmF=kmF, auc=auc, kmOnGrid = kmOnGrid, stdWTW = stdWTW))
+}
+
+# calculate willingness to wait (WTW) time-series
+wtwTS <- function(thisTrialData, tGrid, wtwCeiling, plotWTW = F) {
+  # ensure timeWaited = scheduledWait on rewarded trials
+  thisTrialData = within(thisTrialData, {timeWaited[trialEarnings!= 0] = scheduledWait[trialEarnings!= 0]})
+  
+  # initialize the per-trial estimate of WTW
+  nTrial = length(thisTrialData$trialEarnings)
+  trialWTW = numeric(length = nTrial) 
+  
+  ## find the longest time waited up through the first quit trial
+  ## (or, if there were no quit trials, the longest time waited at all)
+  ## that will be the WTW estimate for all trials up to the first quit
+  quitIdx = thisTrialData$trialEarnings == 0
+  firstQuitTrial = which(quitIdx)[1] 
+  if (is.na(firstQuitTrial)) {firstQuitTrial = nTrial} 
+  currentTrial = firstQuitTrial
+  currentWTW = max(thisTrialData$timeWaited[1 : currentTrial]) 
+  trialWTW[1:currentTrial] = currentWTW 
+  ## iterate through the remaining trials, updating currentWTW
+  ## which is the longest time waited since the recentest quit trial
+  if(currentTrial < nTrial){
+    for(tIdx in (currentTrial + 1) : nTrial){
+      if(quitIdx[tIdx]) {currentWTW = thisTrialData$timeWaited[tIdx]}
+      else {currentWTW = max(currentWTW, thisTrialData$timeWaited[tIdx])}
+      trialWTW[tIdx] = currentWTW 
+    }
   }
-  return(list(kmT=kmT, kmF=kmF, auc=auc, kmOnGrid=kmOnGrid, stdWd = stdWd))
+  
+  # impose a ceiling value, since WTW exceeding some value may be infrequent
+  trialWTW = pmin(trialWTW, wtwCeiling)
+  
+  # convert from per-trial to per-second 
+  timeWTW = resample(trialWTW, thisTrialData$sellTime, tGrid)
+  
+  # plot time WTW
+  if(plotWTW){
+    p = ggplot(data.frame(tGrid, timeWTW), aes(tGrid, timeWTW)) + geom_line() +
+      xlab("Time in block (s)") + ylab("WTW (s)")  + myTheme
+    print(p)
+  }
+  
+  # return outputs 
+  outputs = list(timeWTW = timeWTW,  trialWTW = trialWTW)
+  return(outputs)
+}
+
+# resample pair-wise sequences
+# inputs:
+# ys: y in the original sequence
+# xs: x in the original sequence
+# Xs: x in the new sequence
+# outputs: 
+# Ys : y in the new sequence 
+
+# in this case, the last element will be NA
+resample = function(ys, xs, Xs){
+  # initialize Ys
+  Ys = rep(NA, length = length(Xs))
+  for(i in 1 : length(Xs)){
+    # for each X in Xs
+    X = Xs[i]
+    # find the index of cloest x value on the right
+    # if closest_right_x_idx exists 
+    if(X <= tail(xs,1)) {
+      # Y takes the corresonding y value
+      closest_right_x_idx = min(which(xs >= X))
+      Ys[i] = ys[closest_right_x_idx]
+    }
+  }
+  return(Ys)
 }
 
 # this function can truncate trials in the simualtion object
@@ -128,62 +172,7 @@ truncateTrials = function(data, startTidx, endTidx){
   return(outputs)
 }
 
-# willingness to wait time-series
-wtwTS <- function(thisTrialData, tGrid, wtwCeiling, label = "", plotWTW = F) {
-  trialWTW = numeric(length = length(thisTrialData$trialEarnings)) # initialize the per-trial estimate of WTW
-  quitIdx = thisTrialData$trialEarnings == loseValue
-  # use either the rewardTime (for reward trials) or time waited (for quit trials)
-  #   (not using time waited for reward trials because this includes the post-reward RT)
-  timeWaited = thisTrialData$scheduledWait # use rewardtime make more sense but sometime nan
-  timeWaited[quitIdx] = thisTrialData$timeWaited[quitIdx]
-  ### find the longest time waited up through the first quit trial
-  #   (or, if there were no quit trials, the longest time waited at all)
-  #   that will be the WTW estimate for all trials prior to the first quit
-  firstQuit = which(quitIdx)[1]
-  if (is.na(firstQuit)) {firstQuit = length(thisTrialData$trialEarnings)} # if no quit, set to the last trial
-  currentWTW = max(timeWaited[1:firstQuit])
-  # start from the trial before the current quit
-  thisTrialIdx = firstQuit - 1
-  trialWTW[1:thisTrialIdx] = currentWTW
-  ### iterate through the remaining trials, updating currentWTW
-  while (thisTrialIdx < length(thisTrialData$trialEarnings)) {
-    thisTrialIdx = thisTrialIdx + 1
-    if (quitIdx[thisTrialIdx]) {currentWTW = timeWaited[thisTrialIdx]}
-    else {currentWTW = max(currentWTW, timeWaited[thisTrialIdx])}
-    trialWTW[thisTrialIdx] = currentWTW
-  }
-  ### impose a ceiling value, since trial durations exceeding some value may be infrequent
-  trialWTW = pmin(trialWTW, wtwCeiling)
-  ### convert from per-trial to per-second over the course of the block
-  endTimeTrial = thisTrialData$sellTime
-  timeWTW = trial2sec(trialWTW, endTimeTrial, tGrid)
-  ### for testing
-  # for testing: plot trialWTW on top of an individual's trialwise plot
-  if(plotWTW){
-    # for testing: plot timeWTW
-    p = ggplot(data.frame(tGrid, timeWTW), aes(tGrid, timeWTW)) + geom_line() +
-      xlab("Time in block (s)") + ylab("WTW (s)") + ggtitle(sprintf('WTW : %s', label)) +
-      displayTheme
-    print(p)
-  }
-  outputs = list(timeWTW = timeWTW,  trialWTW = trialWTW)
-  return(outputs)
-}
-# this function maps trial-wise data to a continous time scale
-trial2sec = function(dataTrial, endTimeTrial, tGrid){
-  dataTime = numeric(length = length(tGrid))
-  nTrial = length(dataTrial)
-  binStartIdx = 1
-  for(tIdx in 1 : nTrial){
-    binEndTime = endTimeTrial[tIdx] 
-    binEndIdx = max(which(tGrid < binEndTime)) # last grid point that falls within this trial
-    dataTime[binStartIdx:binEndIdx] = dataTrial[tIdx]
-    binStartIdx = binEndIdx + 1
-  }
-  # extend the final value to the end of the vector
-  dataTime[binStartIdx:length(dataTime)] = dataTrial[nTrial]  
-  return(dataTime)
-}
+
 # correlation plot
 # the first col of plotData is x, the second col is y, the third col is the group
 plotCorrelation = function(data, dotColor = "black",isRank){
@@ -214,42 +203,20 @@ plotCorrelation = function(data, dotColor = "black",isRank){
     p0 = ggplot(plotData, aes(x, y)) + geom_point(size = 3, color = dotColor, fill = dotColor)
   }
   p = p0  + geom_text(data = textData,aes(x = -Inf,y = -Inf, label = label),
-              hjust   = -0.2,vjust = -1,color = textColors, size = 5, fontface = 2, color = "#252525") +
+                      hjust   = -0.2,vjust = -1,color = textColors, size = 5, fontface = 2, color = "#252525") +
     facet_grid(~cond)
- return(p)
+  return(p)
 } 
 
 
 getCorrelation = function(data){
   conditions = c("HP", "LP")
   colnames(data) = c("x", "y", "cond")
-
+  
   # calculate correlations
   # since we can't get rho from the later
   corTests = lapply(1:2, function(i) cor.test(data[data$cond == conditions[i], "x"],
                                               data[data$cond == conditions[i], "y"],
-                                              method = "kendall") 
-                    )
-  # supposedly, kendall can deal with data with a lot of ties
-  # corTestsPerm = lapply(1:2, function(i) spearman_test(data[data$cond == conditions[i], "x"] ~
-  #                                                    data[data$cond == conditions[i], "y"]))
-  rhos = sapply(1:2, function(i) as.numeric(corTests[[i]]$estimate))
-  ps = sapply(1:2, function(i) round(corTests[[i]]$p.value, 3))
-  # ps = sapply(1:2, function(i) round(pvalue(corTestsPerm [[i]]), 3))
-  return(list(rhos = rhos, ps = ps))
-}
-
-getPartCorrelation = function(data){
-  library("ppcor")
-
-  conditions = c("HP", "LP")
-  colnames(data) = c("x", "y", "z", "cond")
-  
-  # calculate correlations
-  # since we can't get rho from the later
-  corTests = lapply(1:2, function(i) pcor.test(data[data$cond == conditions[i], "x"],
-                                              data[data$cond == conditions[i], "y"],
-                                              data[data$cond == conditions[i], "z"],
                                               method = "kendall") 
   )
   # supposedly, kendall can deal with data with a lot of ties
@@ -261,126 +228,45 @@ getPartCorrelation = function(data){
   return(list(rhos = rhos, ps = ps))
 }
 
-# convert data of multiple blocks into one session
-block2session = function(tempt){
-  nBlock = length(unique(tempt$blockNum))
-  nTrials = sapply(1:nBlock, function(i) sum(tempt$blockNum == i))
-  thisTrialData = within(tempt, {trialNum = trialNum + rep(c(0, cumsum(nTrials)[1:(nBlock - 1)]), time = nTrials);
-  sellTime = sellTime + rep((1:nBlock - 1) * blockSecs, time = nTrials);
-  trialStartTime = trialStartTime + rep((1:nBlock - 1) * blockSecs, time = nTrials);
-  totalEarnings = totalEarnings +  rep(c(0, totalEarnings[cumsum(nTrials)[1:(nBlock - 1)]]),
-                                       time = nTrials)
-  })
+getPartCorrelation = function(data){
+  library("ppcor")
+  
+  conditions = c("HP", "LP")
+  colnames(data) = c("x", "y", "z", "cond")
+  
+  # calculate correlations
+  # since we can't get rho from the later
+  corTests = lapply(1:2, function(i) pcor.test(data[data$cond == conditions[i], "x"],
+                                               data[data$cond == conditions[i], "y"],
+                                               data[data$cond == conditions[i], "z"],
+                                               method = "kendall") 
+  )
+  # supposedly, kendall can deal with data with a lot of ties
+  # corTestsPerm = lapply(1:2, function(i) spearman_test(data[data$cond == conditions[i], "x"] ~
+  #                                                    data[data$cond == conditions[i], "y"]))
+  rhos = sapply(1:2, function(i) as.numeric(corTests[[i]]$estimate))
+  ps = sapply(1:2, function(i) round(corTests[[i]]$p.value, 3))
+  # ps = sapply(1:2, function(i) round(pvalue(corTestsPerm [[i]]), 3))
+  return(list(rhos = rhos, ps = ps))
+}
+
+# integrate stacked data from several blocks 
+block2session = function(thisTrialData){
+  nBlock = length(unique(thisTrialData$blockNum))
+  nTrials = sapply(1:nBlock, function(i) sum(thisTrialData$blockNum == i))
+  # accumulated trials 
+  ac_nTrials = c(0, cumsum(head(nTrials, -1)))
+  # accumulated task durations
+  ac_taskTimes = (1:nBlock - 1) * blockSec
+  # accumulated totalEarnings sofar
+  ac_totalEarnings_s = c(0, thisTrialData$totalEarnings[cumsum(nTrials)[1:(nBlock - 1)]])
+  
+  # convert within-block variables to accumualting-across-block variables
+  thisTrialData = within(thisTrialData,
+                         {trialNum = trialNum + rep(ac_nTrials , time = nTrials);
+                         sellTime = sellTime + rep(ac_taskTimes, time = nTrials);
+                         totalEarnings = totalEarnings + rep(ac_totalEarnings_s, time = nTrials)});
   return(thisTrialData)
 }
-
-
-# kmscMoving 
-kmscMoving = function(thisTrialData, tMax, label, plotKMSC, tGrid, window, by){
-  library(survival)
-  # initialize
-  nTrial = length(thisTrialData$scheduledWait)
-  # (nTrial - window + 1) / by is the number of gap, +1 to get nWindow, +2 to make one more
-  nWindow = ceiling(((nTrial - window + 1) / by)) +1  
-  endTimes = numeric(length = nWindow)
-  survFits = vector(mode = "list", length = nWindow)
-  # loop over windows
-  nCore = parallel::detectCores() -1 # only for the local computer
-  library("doMC")
-  library("foreach")
-  registerDoMC(nCore)
-  survFits = foreach(i = 1 : nWindow) %dopar% {
-    startTrial = 1 + by * (i-1)
-    endTrial = min(startTrial + window - 1, nTrial)
-    # survival analysis
-    trialData = truncateTrials(thisTrialData, startTrial, endTrial)
-    waitDuration = trialData$timeWaited
-    quitIdx = (trialData$trialEarnings == 0)
-    # for rewarded trials, base the duration on the reward delivery time (not the subsequent response)
-    waitDuration[!quitIdx] <- trialData$scheduledWait[!quitIdx]
-    tempt = fitSurv(waitDuration, quitIdx)
-  }
-  winEndTimes = sapply(1 : nWindow, function(i) thisTrialData$sellTime[min(i*by+window-by,
-                                                                           nTrial)])
-  winAUCs = sapply(1 : nWindow, function(i) survFits[[i]]$auc)
-  winStdWds = sapply(1 : nWindow, function(i) survFits[[i]]$stdWd)
-  # map to the continous time scale 
-  timeAUCs = trial2sec(winAUCs, winEndTimes, tGrid)
-  timeStdWds =  trial2sec(winStdWds, winEndTimes, tGrid)
-  return(list(timeAUCs = timeAUCs, timeStdWds = timeStdWds,
-              winAUCs = winAUCs, winStdWds = winStdWds))
-}
-
-fitSurv = function(waitDuration, quitIdx){
-  # fit the survival function
-  kmfit <- survfit(Surv(waitDuration, quitIdx, type='right') ~ 1, 
-                   type='kaplan-meier', conf.type='none', start.time=0, se.fit=FALSE)
-  # extract elements of the survival curve object (?survfit.object)
-  kmT = kmfit$time
-  kmF = kmfit$surv
-  # add a point at zero, since "kaplan-meier" starts from the first event
-  kmT = c(0, kmT)
-  kmF = c(1, kmF)
-  # keep only points up through tMax 
-  # if you use the same tMax for both condition, otherwise you can skip this
-  keepIdx = kmT<=tMax
-  kmT <- kmT[keepIdx]
-  kmF <- kmF[keepIdx]
-  # extend the last value to exactly tMax
-  # notice that kmT is not evenly spaced
-  kmT <- c(kmT, tMax)
-  kmF <- c(kmF, tail(kmF,1))
-  # calculate auc
-  auc <- sum(diff(kmT) * head(kmF,-1))
-  kmFmy = kmF
-  kmFmy[length(kmFmy)] = 0
-  # sum(tail(kmT, -1) * diff((1 - kmFmy)))
-  stdWd = sqrt(sum((tail(kmT, -1) - auc)^2 * diff((1 - kmFmy))))
-  # return 
-  return(list(kmT=kmT, kmF=kmF, auc=auc, stdWd = stdWd))
-}
-
-deMean = function(input){
-  output = input - mean(input)
-  return(output)
-}
-
-stand = function(input){
-  output = (input - mean(input)) / sd(input)
-  return(output)
-}
-
-movAve = function(x, windowSize){
-  if(windowSize %% 2 == 0){
-    print("windowSize should be an even number")
-  }
-  halfWin = (windowSize - 1) / 2
-  y = sapply(1 : length(x), function(i){
-    startIdx = max(1, i - halfWin)
-    endIdx = min(length(x), i + halfWin)
-    mean(x[startIdx:endIdx])
-  })
-  return(y)
-}
-
-# lastTrunc = function(thisTrialData){
-#   cond = unique(thisTrialData$condition)
-#   cIdx = ifelse(cond == "HP", 1, 2)
-#   excludedTrials = lapply(1 : nBlock, function(i)
-#     which(thisTrialData$trialStartTime > (blockSecs - tMaxs[cIdx]) &
-#             (thisTrialData$blockNum == i)))
-#   includeStart = which(thisTrialData$trialNum == 1)
-#   includeEnd = sapply(1 : nBlock, function(i){
-#     if(length(excludedTrials[[i]] > 0)){
-#       min(excludedTrials[[i]])-1
-#     }else{
-#       max(which(thisTrialData$blockNum ==i))  
-#     }
-#   })
-#   tempt = lapply(1 : nBlock, function(i)
-#     truncateTrials(thisTrialData, includeStart[i], includeEnd[i]))
-#   thisTrialData = do.call("rbind", tempt)
-#   
-# }
 
 

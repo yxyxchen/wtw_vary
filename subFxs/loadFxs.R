@@ -1,16 +1,8 @@
-
-# loadData.R
-# varying-magnitude WTW
-
-# each subject has:
-#  header file (*hdr.txt)
-#  main data file (ending both in .mat and .txt)
-#  empty *keytimes.txt file, a vestige of the effort key-pressing version. 
 loadAllData = function() {
+  
   library("gtools")
   # load hdrData fileNames
-  dataDir = "data"
-  fileNames = list.files(path= dataDir, pattern=('*_hdr.txt'))
+  fileNames = list.files(path= "data", pattern=('*_hdr.txt'))
   fileNames = mixedsort(sort(fileNames))
   nFile = length(fileNames)
   if(any(duplicated(fileNames))){
@@ -20,23 +12,23 @@ loadAllData = function() {
     sprintf("load %d hdrData files", nFile) 
   }
   # load hdrData
-  ID = vector(length = nFile)
+  id = vector(length = nFile)
   cbal = vector(length = nFile)
   for(i in 1 : nFile){
     fileName = fileNames[i]
-    id = substr(fileName, 12,14)
-    junk = read.csv(sprintf("%s/%s", dataDir, fileName))
-    ID[i] = id
+    thisId = substr(fileName, 12,14)
+    junk = read.csv(sprintf("%s/%s", "data", fileName))
+    id[i] = thisId
     cbal[i] = as.double(substr(junk[[1]][1], 7, 7))
   }
-  hdrData = data.frame(ID = ID, cbal = cbal, stringsAsFactors = F)
+  hdrData = data.frame(id = id, cbal = cbal, stringsAsFactors = F)
   
   # define column names 
   colNames = c('blockNum', 'trialNum', 'trialStartTime', 'nKeyPresses', 'scheduledWait',
-    'rewardTime', 'timeWaited', 'sellTime', 'trialEarnings','totalEarnings')
+               'rewardTime', 'timeWaited', 'sellTime', 'trialEarnings','totalEarnings')
   
   # get trialData fileNames
-  trialFileNames = list.files(path= dataDir, pattern=('wtw-work-7_[0-9]{3}_[0-9].txt'))
+  trialFileNames = list.files(path= "data", pattern=('wtw-work-7_[0-9]{3}_[0-9].txt'))
   trialFileNames = mixedsort(sort(trialFileNames))
   nFile = length(trialFileNames)
   if(any(duplicated(trialFileNames))){
@@ -50,21 +42,22 @@ loadAllData = function() {
   trialData = list()
   for(i in 1 : nFile){
     fileName = trialFileNames[i]
-    id = substr(fileName, 12,14)
-    junk = read.csv(sprintf("%s/%s", dataDir, fileName), col.names = colNames, header = T)
-    if(hdrData$cbal[which(hdrData$ID == id)] == 1){
-      condition = ifelse(junk$blockNum %% 2 == 1, "Rising", "Falling")
+    thisId = substr(fileName, 12,14)
+    junk = read.csv(sprintf("%s/%s", "data", fileName), col.names = colNames, header = T)
+    if(hdrData$cbal[which(hdrData$id == thisId)] == 1){
+      condition = ifelse(junk$blockNum %% 2 == 1, "HP", "LP")
     }else{
-      condition = ifelse(junk$blockNum %% 2 == 1, "Falling", "Rising")
+      condition = ifelse(junk$blockNum %% 2 == 1, "LP", "HP")
     }
     junk$condition = condition
-    trialData[[id]] = junk
+    trialData[[thisId]] = junk
   }
   
   outputData = list(hdrData=hdrData, trialData=trialData)
   return(outputData)
   
 } 
+
 
 loadExpPara = function(paraNames, dirName){
   # number of paraNames 
@@ -99,7 +92,7 @@ loadExpPara = function(paraNames, dirName){
   expPara = data.frame(expPara)
   junk = c(paraNames, "LL_all")
   colnames(expPara) = c(junk, paste0(junk, "SD"), paste0(junk, "Effe"), paste0(junk, "Rhat"))
-  expPara$id = idList
+  expPara$id = idList # ensure the levels are consistent, usually not that problematic though
   return(expPara)
 }
 
@@ -146,6 +139,7 @@ loadCVPara = function(paraNames, dirName, pattern){
   expPara$id = idList
   return(expPara)
 }
+
 
 
 
