@@ -21,6 +21,8 @@
 # Viti_ : [nTrialx1 num] state value of the iti stage at each trial 
 
 QL1 = function(paras, condition_, scheduledWait_, scheduledReward_){
+  load('expParas.RData')
+  
   # extract parameter values
   phi = paras[1]; tau = paras[2]; gamma = paras[3]; prior = paras[4]
   

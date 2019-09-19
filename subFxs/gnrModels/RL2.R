@@ -20,7 +20,9 @@
 # Qwaits_ : [nStepMax x nTrial num] action value of waiting for each time step at each trial
 # Viti_ : [nTrialx1 num] state value of the iti stage at each trial 
 
-RL2 = function(paras, condition_, scheduledWait_){
+RL2 = function(paras, condition_, scheduledWait_, scheduledReward_){
+  load('expParas.RData')
+  
   # extract parameter values
   phi_pos = paras[1]; phi_neg = paras[2]; tau = paras[3]; prior = paras[4]; beta = paras[5]
   
@@ -50,7 +52,7 @@ RL2 = function(paras, condition_, scheduledWait_){
   for(tIdx in 1 : nTrial) {
     # current scheduledWait 
     scheduledWait = scheduledWait_[tIdx]
-    
+    scheduledReward = scheduledReward_[tIdx]
     # loop over steps until a trial ends 
     t = 1
     while(t <= nStepMax){
@@ -68,7 +70,7 @@ RL2 = function(paras, condition_, scheduledWait_){
       if(isTerminal){
         # update trial-wise variables 
         T = t + 1 # terminal state
-        trialEarnings = ifelse(getReward, tokenValue, 0) # payment 
+        trialEarnings = ifelse(getReward, scheduledReward, 0) # payment 
         timeWaited =  ifelse(getReward, scheduledWait, t * stepSec) # waiting duration 
         sellTime = elapsedTime + timeWaited # elapsed task time when the agent sells the token
         elapsedTime = elapsedTime + timeWaited + iti # elapsed task time before the next trial
@@ -95,7 +97,12 @@ RL2 = function(paras, condition_, scheduledWait_){
       
       # update Qwaits 
       if(getReward){
-        Qwaits[1 : (T-1)] = Qwaits[1 : (T-1)] + phi_pos *(stepRwdSignals[1 : (T-1)] - Qwaits[1 : (T-1)])
+        if(trialEarnings > 0){
+          Qwaits[1 : (T-1)] = Qwaits[1 : (T-1)] + phi_pos *(stepRwdSignals[1 : (T-1)] - Qwaits[1 : (T-1)])
+        }else{
+          Qwaits[1 : (T-1)] = Qwaits[1 : (T-1)] + phi_neg *(stepRwdSignals[1 : (T-1)] - Qwaits[1 : (T-1)])
+        }
+        
       }else{
         if(T > 2){
           # in non-rewarded trials, Qwait in the last step will not be updated
