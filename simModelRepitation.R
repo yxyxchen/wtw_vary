@@ -1,52 +1,37 @@
 # libraries and scripts
-library("stringr")
 library("ggplot2")
 library("dplyr")
 library("tidyr")
 source("subFxs/helpFxs.R")
 source("subFxs/loadFxs.R")
-source("subFxs/modelComparisonFxs.R")
 source("subFxs/plotThemes.R")
-load("wtwSettings.RData")
+
 # load model names
 allData = loadAllData()
 hdrData = allData$hdrData           
 trialData = allData$trialData       
-allIDs = hdrData$ID                   # column of subject IDs
-n = length(allIDs) 
-load("genData/expDataAnalysis/blockData.RData")
-# select common useID
-idList = hdrData$ID
+ids = hdrData$id[hdrData$stress == "no_stress"]                 # column of subject IDs
+nSub = length(ids) 
 
-# test useID
-decodes = c("RL1", "RL2", "BL", "QL1", "QL2")
-encodes = c("RL2", "QL2")
-for(e in 1 : length(encodes)){
-  encode = encodes[e]
-  # load simData
-  load(sprintf("genData/simulation/%s.RData", encode))
-  ids = hdrData$ID
-  nSub = length(ids)    
-  for(d in 1 : length(decodes)){
-    decode = decodes[d]
-    # determine paraNames
-    paraNames = getParaNames(decode)
-    nPara = length(paraNames)
-    if(paraNames == "wrong model name"){
-      print(paraNames)
-      break
-    }
-    # determine excID
-    expPara = loadExpPara(paraNames,
-                          sprintf("genData/simModelFitting/%s/%sdb", encode, decode))
-    useID = getUseID(expPara, paraNames)
-    excID = ids[!ids %in% useID]
-    txt = sprintf("%s_%s:%s", encode, decode, length(useID))
-    print(txt)
-    readline("continue")
-  }
-}
+# check fit
+modelName = "QL2"
+paraNames = getParaNames(modelName)
+nPara = length(paraNames)
+expPara = loadExpPara(paraNames, sprintf("genData/expModelFit/%s/%s", modelName, modelName))
+simPara = loadExpPara(paraNames, sprintf("genData/simModelFit/%s/%s", modelName, modelName)) 
+passCheckIds = simPara$id[checkFit(paraNames, simPara)]
+nPassCheck = length(passCheckIds)
 
+data.frame(rbind(expPara[,c(1:nPara,25)], simPara[,c(1:nPara,25)])) %>%
+  filter(id %in% passCheckIds) %>% 
+  mutate(source = rep(c("exp", "sim"), each = nPassCheck )) %>%
+  group_by(source) %>% 
+  gather(key = "paraName", value = "paraValue", -source) %>%
+  ggplot(aes())
+  
+  
+  
+  
 # 
 modelName = "QL2"
 paraNames = getParaNames(modelName)

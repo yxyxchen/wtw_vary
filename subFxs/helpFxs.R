@@ -1,29 +1,35 @@
 library("stringr")
 getParaNames = function(modelName){
   if(modelName == "QL1") paraNames = c("phi", "tau", "gamma", "prior")
-  else if(modelName == "QL2") paraNames = c("phi", "nega", "tau", "gamma", "prior")
+  else if(modelName == "QL2") paraNames = c("phi_pos", "phi_neg", "tau", "gamma", "prior")
   else if(modelName == "RL1") paraNames = c("phi", "tau", "prior", "beta")
-  else if(modelName =="RL2") paraNames = c("phi", "nega", "tau", "prior", "beta")
-  else if(modelName == "BL") paraNames = c("pWait")
-  else return("wrong model name")
+  else if(modelName =="RL2") paraNames = c("phi_pos", "phi_neg", "tau", "prior", "beta")
+  else if(modelName == "BL") paraNames = c("pwait")
   return(paraNames)
 }
 
-getUseID = function(expPara, paraNames){
-  paraNames = c(paraNames, "LL_all")
-  idList = expPara$id
-  RhatCols = which(str_detect(colnames(expPara), "hat"))[1 : length(paraNames)]
-  EffeCols = which(str_detect(colnames(expPara), "Effe"))[1 : length(paraNames)]
-  if(length(RhatCols) == 1){
-    useID = idList[expPara[,RhatCols] < 1.1 & 
-                     expPara[,EffeCols] >100]
-  }else{
-    useID = idList[apply(expPara[,RhatCols] < 1.1, MARGIN = 1, sum) == length(paraNames) & 
-                     apply(expPara[,EffeCols] >100, MARGIN = 1, sum) == length(paraNames)]
-  }
-  return(useID)
-}
+checkFit = function(paraNames, expPara){
+  ids = expPara$id
+  # detect participants with high Rhats 
+  RhatCols = which(str_detect(colnames(expPara), "hat"))[1 : length(paraNames)] # columns recording Rhats
+  high_Rhat_ids = ids[apply(expPara[,RhatCols] >= 1.01, MARGIN = 1, sum) > 0]
   
+  # detect participants with low ESSs
+  ESSCols = which(str_detect(colnames(expPara), "Effe"))[1 : length(paraNames)]# columns recording ESSs
+  low_ESS_ids = ids[apply(expPara[,ESSCols] < (4 * 100), MARGIN = 1, sum) > 0]
+  
+  # detect divergent transitions
+  dt_ids = ids[expPara$nDt > 0]
+  
+  # identify participants satisifying all three criteria:
+  passCheck = !ids %in% unique(c(dt_ids, high_Rhat_ids, low_ESS_ids))
+  
+  return(passCheck)
+}
+
+
+# check R-hat and ESS of parameter estimations
+## 
 getParaComb = function(paraTable){
   paraNames = names(paraTable)
   nPara = length(paraTable)
