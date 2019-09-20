@@ -37,12 +37,11 @@ wTest = wilcox.test( sumStats[sumStats$condition == "HP", "muWTW"],
 data.frame(muWTWHP = sumStats$muWTW[sumStats$condition == 'HP'],
            muWTWLP = sumStats$muWTW[sumStats$condition == 'LP']) %>%
   ggplot(aes(muWTWLP, muWTWHP)) +
-  geom_point(color = themeColor, size = 4, shape = 21, fill = '#9ecae1', stroke =1) +
+  geom_point(color = themeColor, size = 5, shape = 21, fill = '#9ecae1', stroke =1) +
   geom_abline(slope = 1, intercept = 0) + 
   annotate("text", x = 15, y = 3, label = sprintf('p < 0.001***', wTest$p.value)) +
   xlab("LP muAUC / (s)") + ylab("HP muAUC / (s)") + 
     myTheme + xlim(c(-1,31)) + ylim(c(-1,31)) 
-dir.create("figures/MFPlots") 
-ggsave("figures/MFPlot/muWTW_comparison.eps", width = 4, height = 3)
+ggsave("figures/MFPlot/muWTW_comparison.eps", width = 3, height = 4)
 
 

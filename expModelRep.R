@@ -119,13 +119,17 @@ expModelRep = function(modelName){
              condition = sumStats$condition) %>%
     mutate(min = mu - std, max = mu + std) %>%
     filter(passCheck == T) %>%
-    ggplot(aes(empMu, mu)) + 
-    geom_point(size = 2, color = themeColor, fill = "#ccece6", shape= 21, stroke = 1) + facet_grid(~condition) + 
-    geom_abline(slope = 1, intercept = 0) + xlim(c(0, 32)) + ylim(c(0, 32)) +
+    ggplot(aes(empMu, mu, shape = condition)) + 
+    geom_point(size = 2, color = themeColor, fill = "#ccece6", stroke = 1) + 
+    geom_abline(slope = 1, intercept = 0) +
+    scale_shape_manual(values = c(21, 23)) + 
     ylab("Model-generated (s)") + xlab("Observed (s)") + ggtitle(sprintf("Average WTW, n = %d", sum(passCheck))) +
-    myTheme + theme(plot.title = element_text(face = "bold", hjust = 0.5))
-  fileName = sprintf("figures/expModelRep/%s/muWTW_muWTWRep.eps", modelName)
-  ggsave(filename = fileName,  width = 6, height = 4)
+    myTheme + theme(plot.title = element_text(face = "bold", hjust = 0.5)) +
+    scale_x_continuous(breaks = c(0, 30), limits = c(-1,31)) + 
+    scale_y_continuous(breaks = c(0, 30), limits = c(-1,31))
+    
+  fileName = sprintf("figures/expModelRep/%s/muWTW_muWTWRep.eps", modelName) 
+  ggsave(filename = fileName,  width = 4, height = 2.5)
 
   ## plot to compare std willingess to wait
   data.frame(mu =  stdWTWRep_mu, std = stdWTWRep_std,
@@ -133,11 +137,14 @@ expModelRep = function(modelName){
              condition = sumStats$condition) %>%
     mutate(min = mu - std, max = mu + std) %>%
     filter(passCheck == T) %>%
-    ggplot(aes(empStd, mu)) + 
-    geom_point(size = 2, color = themeColor, fill = "#ccece6", shape= 21, stroke = 1) + facet_grid(~condition) + 
+    ggplot(aes(empStd, mu, shape = condition)) + 
+    geom_point(size = 2, color = themeColor, fill = "#ccece6", stroke = 1)  + 
     geom_abline(slope = 1, intercept = 0) +
     ylab(expression(bold(paste("Model-generated (s"^2,")")))) + xlab(expression(bold(paste("Observed (s"^2,")")))) + ggtitle(sprintf("Std WTW, n = %d", sum(passCheck))) +
-    myTheme + theme(plot.title = element_text(face = "bold", hjust = 0.5))
+    myTheme + theme(plot.title = element_text(face = "bold", hjust = 0.5)) +
+    scale_shape_manual(values = c(21, 23)) + 
+    scale_x_continuous(breaks = c(0, 15)) + 
+    scale_y_continuous(breaks = c(0, 15))
   fileName = sprintf("figures/expModelRep/%s/stdWTW_stdWTWRep.eps", modelName)
-  ggsave(filename = fileName,  width = 6, height = 4)
+  ggsave(filename = fileName,  width = 4, height = 2.5)
 }
