@@ -70,7 +70,7 @@ loadExpPara = function(paraNames, dirName){
   sprintf("load %d files", n)
   
   # initialize the outout variable 
-  expPara = matrix(NA, n, nE * 4)
+  expPara = matrix(NA, n, nE * 4 + 1)
   idList = vector(length = n)
   # loop over files
   for(i in 1 : n){
@@ -87,11 +87,13 @@ loadExpPara = function(paraNames, dirName){
     expPara[i, (nE + 1) : (2 * nE)] = junk[,3]
     expPara[i, (2*nE + 1) : (3 * nE)] = junk[,9]
     expPara[i, (3 * nE + 1) : (4 * nE)] = junk[,10]
+    expPara[i, nE * 4 + 1] = junk[1,11]
   }
   # transfer expPara to data.frame
   expPara = data.frame(expPara)
   junk = c(paraNames, "LL_all")
-  colnames(expPara) = c(junk, paste0(junk, "SD"), paste0(junk, "Effe"), paste0(junk, "Rhat"))
+  colnames(expPara) = c(junk, paste0(junk, "SD"), paste0(junk, "Effe"), paste0(junk, "Rhat"),
+                        "nDt")
   expPara$id = idList # ensure the levels are consistent, usually not that problematic though
   return(expPara)
 }

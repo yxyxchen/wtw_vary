@@ -16,7 +16,7 @@ expModelCmp = function(){
   nSub = length(ids) 
   
   # check fit
-  modelNames = c("QL1", "QL2", "RL1", "RL2")
+  modelNames = c("QL1", "QL2", "RL1", "RL2_v2")
   nModel = length(modelNames)
   passCheck_ = matrix(NA, nrow = nSub, ncol = nModel)
   for(i in 1 : nModel){
@@ -67,7 +67,7 @@ expModelCmp = function(){
   # compare RL2 and QL2
   bestNums = sapply(1 : 2, function(i) sum(apply(
     logEvidence_[passCheck_[,2] & passCheck_[,4],c(2,4)],MARGIN = 1, FUN = function(x) which.max(x) == i)))
-  data.frame(model = modelNames[1:2], bestNums = bestNums) %>%
+  data.frame(model = modelNames[c(2,4)], bestNums = bestNums) %>%
     ggplot(aes(x="", y=bestNums, fill=model)) +
     geom_bar(width = 1, stat = "identity") + 
     coord_polar("y", start=0) + ylab("") + xlab("") +

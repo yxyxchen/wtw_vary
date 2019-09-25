@@ -4,6 +4,8 @@ getParaNames = function(modelName){
   else if(modelName == "QL2") paraNames = c("phi_pos", "phi_neg", "tau", "gamma", "prior")
   else if(modelName == "RL1") paraNames = c("phi", "tau", "prior", "beta")
   else if(modelName =="RL2") paraNames = c("phi_pos", "phi_neg", "tau", "prior", "beta")
+  else if(modelName == "RL2_v2") paraNames = c("phi_pos", "phi_neg", "tau", "prior", "beta_pos",
+                                              "beta_neg")
   else if(modelName == "BL") paraNames = c("pWait")
   return(paraNames)
 }
@@ -12,11 +14,21 @@ checkFit = function(paraNames, expPara){
   ids = expPara$id
   # detect participants with high Rhats 
   RhatCols = which(str_detect(colnames(expPara), "hat"))[1 : length(paraNames)] # columns recording Rhats
-  high_Rhat_ids = ids[apply(expPara[,RhatCols] >= 1.01, MARGIN = 1, sum) > 0]
+  if(length(RhatCols) > 1){
+    high_Rhat_ids = ids[apply(expPara[,RhatCols] >= 1.01, MARGIN = 1, sum) > 0]
+  }else{
+    high_Rhat_ids = ids[expPara[,RhatCols] >= 1.01 ]
+  }
+  
   
   # detect participants with low ESSs
   ESSCols = which(str_detect(colnames(expPara), "Effe"))[1 : length(paraNames)]# columns recording ESSs
-  low_ESS_ids = ids[apply(expPara[,ESSCols] < (4 * 100), MARGIN = 1, sum) > 0]
+  if(length(ESSCols) > 1){
+    low_ESS_ids = ids[apply(expPara[,ESSCols] < (4 * 100), MARGIN = 1, sum) > 0]
+  }else{
+    low_ESS_ids = ids[expPara[,ESSCols] < (4 * 100)]
+  }
+  
   
   # detect divergent transitions
   dt_ids = ids[expPara$nDt > 0]
@@ -26,6 +38,7 @@ checkFit = function(paraNames, expPara){
   
   return(passCheck)
 }
+
 
 
 # check R-hat and ESS of parameter estimations
