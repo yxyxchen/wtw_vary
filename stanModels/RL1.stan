@@ -131,7 +131,7 @@ model {
       }
       // calculate the likelihood using the soft-max function
       actionValues[1] = Qwaits_[t, tIdx] * tau;
-      actionValues[2] = Viti_[tIdx] * tau;
+      actionValues[2] = (Viti_[tIdx] - reRate_[tIdx]) * tau;
       target += categorical_logit_lpmf(action | actionValues);
     } 
   }
@@ -159,7 +159,7 @@ generated quantities {
       }
       // calculate the likelihood using the soft-max function
       actionValues[1] = Qwaits_[t, tIdx] * tau;
-      actionValues[2] = Viti_[tIdx] * tau;
+      actionValues[2] =  (Viti_[tIdx] - reRate_[tIdx]) * tau;
       log_lik[no] =categorical_logit_lpmf(action | actionValues);
       no = no + 1;
     }

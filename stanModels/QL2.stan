@@ -101,10 +101,10 @@ transformed parameters{
     
     // update Qwaits and Viti towards the discounted reward signals 
     for(t in 1 : nWait_s[tIdx]) {
-      real discRwdsignal = rwdSignal * gamma^(T - t -1);
+      real discRwdsignal = rwdSignal * gamma^(T - t);
       Qwaits[t] = Qwaits[t] + currentPhi * (discRwdsignal - Qwaits[t]);
     }
-    Viti = Viti + currentPhi * (gamma ^ (T -2 + iti / stepSec) * rwdSignal - Viti);
+    Viti = Viti + currentPhi * (gamma ^ (T - 1 + iti / stepSec) * rwdSignal - Viti);
     
     
     // save action values
@@ -140,7 +140,7 @@ model {
       }
       // calculate the likelihood using the soft-max function
       actionValues[1] = Qwaits_[t, tIdx] * tau;
-      actionValues[2] = Viti_[tIdx] * tau;
+      actionValues[2] = Viti_[tIdx] * gamma * tau;
       target += categorical_logit_lpmf(action | actionValues);
     } 
   }
@@ -168,7 +168,7 @@ generated quantities {
       }
       // calculate the likelihood using the soft-max function
       actionValues[1] = Qwaits_[t, tIdx] * tau;
-      actionValues[2] = Viti_[tIdx] * tau;
+      actionValues[2] = Viti_[tIdx] * gamma * tau;
       log_lik[no] =categorical_logit_lpmf(action | actionValues);
       no = no + 1;
     }

@@ -56,8 +56,6 @@ modelFitSingle = function(id, thisTrialData, modelName, paraNames, model, config
    outputFile_clean = sub(pattern = sprintf("genData/(exp|sim)*ModelFit(CV)*/[A-Z0-9]*/*%s/", modelName),
                       replacement = "", outputFile)
     
-   grep(pattern = sprintf("genData/simModelFit/QL2/%s/", modelName),
-        outputFile)
    # fit the model
     withCallingHandlers({
       fit = sampling(object = model, data = inputs, cores = 1, chains = nChain,
