@@ -41,7 +41,7 @@ MFAnalysis = function(isTrct){
   # initialize output variables 
   nExcls = numeric(length = nSub * nBlock)
   muWTWs = numeric(length = nSub * nBlock) 
-  stdWTWs = numeric(length = nSub * nBlock) 
+  stdWTWs = numeric(length = nSub * nBlovck) 
   totalEarnings_s =  numeric(length = nSub * nBlock) 
   conditions = numeric(length = nSub * nBlock) 
   timeWTW_ = vector(mode = "list", length = nSub * nBlock) 
