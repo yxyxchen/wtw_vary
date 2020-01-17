@@ -2,6 +2,7 @@
 library('ggplot2')
 library('tidyr'); library('dplyr')
 source('subFxs/plotThemes.R')
+dir.create("figures/expSchematics")
 
 load("expParas.RData")
 # plot exp
@@ -12,17 +13,20 @@ slowCDF = pgamma(x,  6, scale = 2, log = FALSE)/ pgamma(tMaxs[2],  6, scale = 2)
 fastPDF = diff(c(0,fastCDF))
 slowPDF = diff(c(0,slowCDF))
 
-data.frame(pdf = c(0, fastPDF, 0, slowPDF, 0, slowPDF, 0, fastPDF), time = rep(c(0, x), 4),
-           cond = rep(c('HP', 'LP'), each = 2 * length(x) + 2),
-           reward = factor(rep(c(tokenValue, tokenValue), each = length(x) + 1))) %>%
-ggplot(aes(time, pdf, fill = reward)) + facet_grid(~cond) + geom_line(color = NA) + 
-  geom_ribbon(aes(ymin=0, ymax=pdf)) + 
-  scale_fill_manual(values = c("#565656", "#9ecae1")) + myTheme + 
-  xlab('Delay duration(s)') + ylab('PDF') 
-dir.create('figures/expSchematics')
-
-
-
+data.frame(cdf = c(0, fastCDF, 0, slowCDF),
+           time = rep(c(0, x), 2),
+           cond = rep(c('Early', 'Late'), each = length(fastCDF) + 1)) %>%
+  ggplot(aes(time, cdf)) + geom_line(color = themeColor, size = 3) + facet_grid(~cond) + 
+  myTheme + xlab('Delay duration (s)') + ylab('CDF') + ggtitle(expName) + 
+  theme(plot.title = element_text(hjust = 0.5, color = themeColor)) +
+  scale_x_continuous(breaks = c(0, max(tMaxs)/ 2, max(tMaxs)),limits = c(0, max(tMaxs) * 1.1)) +
+  scale_y_continuous(breaks = c(0, 0.5, 1)) + 
+  geom_text(data = data.frame(label = c("HP = -1¢", "HP = +8¢"), cond = c("Early", "Late"), x = c(16, 22)),
+            aes(label = label, x = x), y = 0.4, size = 5) + 
+  geom_text(data = data.frame(label = c("LP = +8¢", "LP = -1¢"), cond = c("Early", "Late"), x = c(16, 22)),
+            aes(label = label, x = x), y = 0.2, size = 5)   
+ggsave('figures/expSchematics/CDF.eps', width =4, height = 3)
+ggsave('figures/expSchematics/CDF.png', width =4, height = 3)
 
 
 # plot reward rates

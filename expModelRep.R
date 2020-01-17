@@ -119,7 +119,7 @@ expModelRep = function(modelName){
                         passCheck = rep(passCheck, each = 2), 
                         condition = sumStats$condition) %>% filter(passCheck == T)
   save(plotData, file = "genData/varyRep.RData")
-  
+  cor.test(plotData$mu, plotData$empMu, method = "spearman")
   ## plot to compare average willingess to wait
     plotData %>%
     ggplot(aes(empMu, mu, shape = condition)) + 
