@@ -132,9 +132,8 @@ wtwTS <- function(thisTrialData, tGrid, wtwCeiling, plotWTW = F) {
 # Xs: x in the new sequence
 # outputs: 
 # Ys : y in the new sequence 
-
-# in this case, the last element will be NA
 resample = function(ys, xs, Xs){
+  isBreak = F
   # initialize Ys
   Ys = rep(NA, length = length(Xs))
   for(i in 1 : length(Xs)){
@@ -146,7 +145,15 @@ resample = function(ys, xs, Xs){
       # Y takes the corresonding y value
       closest_right_x_idx = min(which(xs >= X))
       Ys[i] = ys[closest_right_x_idx]
+    }else{
+      isBreak = T
+      lastY = i - 1
+      break
     }
+  }
+  # fill the remaining elements in Ys by the exisiting last element
+  if(isBreak){
+    Ys[(lastY + 1) : length(Xs)] = Ys[lastY]
   }
   return(Ys)
 }

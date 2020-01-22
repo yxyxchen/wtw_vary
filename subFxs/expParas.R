@@ -12,7 +12,7 @@ HP = mean(tokenValue) / (30 + iti) # this is obviously wrong. We know what
 LP = mean(tokenValue) / (5 + iti)
 optimRewardRates = list(HP = HP, LP = LP) 
 # analyses parameters
-tGrid = seq(0, blockSec, by = 2) # time grid for wtw time courses
+tGrid = seq(0, blockSec - 1, by = 1) # time grid for wtw time courses
 kmGrid = seq(0, min(tMaxs), by = 0.1) # time grid for Kaplan-Meier survival curves
 save("conditions" = conditions,
      "tMaxs" = tMaxs,

@@ -29,6 +29,7 @@ MFAnalysis = function(isTrct){
   
   # load experiment parameters
   load("expParas.RData")
+  nBlock = 4
   
   # load exp data
   allData = loadAllData()
@@ -37,11 +38,11 @@ MFAnalysis = function(isTrct){
   ids = hdrData$id 
   nSub = length(ids)                    # n
   cat('Analyzing data for',nSub,'subjects.\n')
-  
+
   # initialize output variables 
   nExcls = numeric(length = nSub * nBlock)
   muWTWs = numeric(length = nSub * nBlock) 
-  stdWTWs = numeric(length = nSub * nBlovck) 
+  stdWTWs = numeric(length = nSub * nBlock) 
   totalEarnings_s =  numeric(length = nSub * nBlock) 
   conditions = numeric(length = nSub * nBlock) 
   timeWTW_ = vector(mode = "list", length = nSub * nBlock) 
@@ -92,8 +93,9 @@ MFAnalysis = function(isTrct){
   }
   # return outputs
   sumStats = data.frame(
-    id = rep(ids, each = 2),
+    id = rep(ids, each = nBlock),
     condition = conditions,
+    cbal = rep(hdrData$cbal, each = nBlock),
     nExcl = nExcls,
     totalEarnings = totalEarnings_s,
     muWTW = muWTWs,

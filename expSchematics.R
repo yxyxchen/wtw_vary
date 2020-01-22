@@ -1,20 +1,57 @@
+# this script plots delay distributions and reward rates in two environments
 
+# load experiment parameters 
+load("expParas.RData")
+
+# for display purposes, all variables on the continous time scale
+# are discretized into 0.1 second time bins
+bin = 0.1 # width of a time bin
+time = list(
+  HP = seq(bin, tMaxs[1], by = bin),
+  LP = seq(bin, tMaxs[2], by = bin)
+) 
+
+# delay CDFS
+## early delay distribution: gamma(k = 2, theta = 2), truncated at 30
+## late delay distribution: gamma(k = 6, theta = 2), truncated at 30
+fastCDF = pgamma(time$HP,  2, scale = 2, log = FALSE) / pgamma(tMaxs[2],  2, scale = 2)
+slowCDF = pgamma(time$LP,  6, scale = 2, log = FALSE)/ pgamma(tMaxs[2],  6, scale = 2)
+
+# delay PDFs
+fastPDF = diff(c(0,fastCDF))
+slowPDF = diff(c(0,slowCDF))
+
+# average waiting durations given different policies
+# Here we assume rewards occur at the middle of each time bin
+slowMeanDelay = cumsum((time$HP - 0.5 * bin) * slowPDF) / cumsum(slowPDF)
+fastMeanDelay =  cumsum((time$LP - 0.5 * bin) * fastPDF) / cumsum(fastPDF)
+
+
+# rewardRates given different policies
+## might be different from the values used in expParas.R, 
+## which are calcuated with a higher temporal resoluation
+HPRate = (8 *  slowCDF + (-1) * fastCDF) / 2 / 
+  ((slowMeanDelay *  slowCDF + time$HP * (1 - slowCDF)) / 2 +
+     (fastMeanDelay *  fastCDF + time$HP * (1 - fastCDF)) / 2 + iti)
+LPRate = ((-1) *  slowCDF + (8) * fastCDF) / 2 / 
+  ((slowMeanDelay *  slowCDF + time$LP * (1 - slowCDF)) / 2 +
+     (fastMeanDelay *  fastCDF + time$LP * (1 - fastCDF)) / 2 + iti)
+
+# optimal raward rates and optimal policies
+optimWaitThresholds = list()
+optimWaitThresholds$HP = time$HP[which.max(HPRate)]
+optimWaitThresholds$LP = time$LP[which.max(LPRate)]
+optimRewardRates = list()
+optimRewardRates$HP = max(HPRate)
+optimRewardRates$LP = max(LPRate)
+
+# plot cdf 
 library('ggplot2')
 library('tidyr'); library('dplyr')
 source('subFxs/plotThemes.R')
 dir.create("figures/expSchematics")
-
-load("expParas.RData")
-# plot exp
-# cdf from 1 
-x = seq(0.5, tMaxs[2], by = 0.5);
-fastCDF = pgamma(x,  2, scale = 2, log = FALSE) / pgamma(tMaxs[2],  2, scale = 2)
-slowCDF = pgamma(x,  6, scale = 2, log = FALSE)/ pgamma(tMaxs[2],  6, scale = 2)
-fastPDF = diff(c(0,fastCDF))
-slowPDF = diff(c(0,slowCDF))
-
 data.frame(cdf = c(0, fastCDF, 0, slowCDF),
-           time = rep(c(0, x), 2),
+           time = c(0, time$HP, 0, time$LP),
            cond = rep(c('Early', 'Late'), each = length(fastCDF) + 1)) %>%
   ggplot(aes(time, cdf)) + geom_line(color = themeColor, size = 3) + facet_grid(~cond) + 
   myTheme + xlab('Delay duration (s)') + ylab('CDF') + ggtitle(expName) + 
@@ -30,24 +67,17 @@ ggsave('figures/expSchematics/CDF.png', width =4, height = 3)
 
 
 # plot reward rates
-slowMeanDelay = cumsum((x - 0.5 * x[1]) * slowPDF) / cumsum(slowPDF)
-fastMeanDelay =  cumsum((x - 0.5 * x[1]) * fastPDF) / cumsum(fastPDF)
-
-policy = data.frame(cond = c("HP", "LP"), rewardRate = c(x[which.max(HPRate)], x[which.max(LPRate)]))
-HPRate = (8 *  slowCDF + (-1) * fastCDF) / 2 / 
-  ((slowMeanDelay *  slowCDF + x * (1 - slowCDF)) / 2 +
-     (fastMeanDelay *  fastCDF + x * (1 - fastCDF)) / 2 + iti)
-
-LPRate = ((-1) *  slowCDF + (8) * fastCDF) / 2 / 
-  ((slowMeanDelay *  slowCDF + x * (1 - slowCDF)) / 2 +
-     (fastMeanDelay *  fastCDF + x * (1 - fastCDF)) / 2 + iti)
-
 data.frame(rate = c(0, HPRate, 0, LPRate), 
-           time = rep(c(0,x), 2),
-           cond = rep(c('HP', 'LP'), each = length(x) + 1)) %>%
-  ggplot(aes(time, rate)) + geom_line(size = 2) + facet_grid(~cond) +
+           time = c(0, time$HP, 0, time$LP),
+           cond = rep(c('HP', 'LP'), each = length(time$HP) + 1)) %>%
+  ggplot(aes(time, rate)) + geom_line(size = 2, color = themeColor) + facet_grid(~cond) +
   myTheme + 
-  ylab(expression(bold("Reward rate (cent s"^"-1"*")"))) + xlab("Waiting policy (s)")  +
-  geom_vline(data = policy, aes(xintercept = rewardRate),
-             linetype = "dashed", size = 1.5) 
-ggsave("figures/exp/reward_rate.png", width = 6, height = 3)
+  ylab(expression(bold("Reward rate ( s"^"-1"*")"))) + xlab("Waiting policy (s)") +
+  ggtitle(expName) + 
+  theme(plot.title = element_text(hjust = 0.5, color = themeColor)) +
+  scale_x_continuous(breaks = c(0, max(tMaxs)/ 2, max(tMaxs)),
+                     limits = c(0, max(tMaxs) * 1.1))
+ggsave("figures/expSchematics/reward_rate.eps", width = 4, height = 3)
+ggsave("figures/expSchematics/reward_rate.png", width = 4, height = 3)
+
+

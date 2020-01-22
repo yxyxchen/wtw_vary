@@ -18,14 +18,14 @@ timeWTW_ = MFResults[['timeWTW_']]
 nSub = nrow(sumStats)
 cbal = sumStats$cbal; cbal[cbal == 1] = "HPLP"; cbal[cbal == 2] = "LPHP"
 yellowData = data.frame(
-  xmin = 0:1 * blockSec, xmax = 0:1 * blockSec + blockSec - max(tMaxs)
+  xmin = 0:3 * blockSec, xmax = 0:3 * blockSec + blockSec - max(tMaxs)
 )
 greyData = data.frame(
-  xmin = 1:2 * blockSec - max(tMaxs), xmax = 1:2 * blockSec
+  xmin = 1:4 * blockSec - max(tMaxs), xmax = 1:4 * blockSec
 )
 
 data.frame(wtw = unlist(timeWTW_),
-           time = rep(seq(0, blockSec * nBlock - 1, by = 1), nSub),
+           time = rep(seq(0, blockSec * 4 - 1, by = 1), nSub),
            condition = rep(sumStats$condition, each = length(tGrid)),
            cbal = rep(cbal, each = length(tGrid))) %>%
   group_by(time, cbal) %>% 
@@ -53,22 +53,24 @@ ggsave("figures/MFPlot/wtw_timecourse.png", width = 5, height = 6)
 # plot average WTWs in two environments
 MFResults = MFAnalysis(isTrct = T)
 sumStats = MFResults[['sumStats']]
-wTest = wilcox.test( sumStats[sumStats$condition == "HP", "muWTW"],
-                     sumStats[sumStats$condition == "LP", "muWTW"],paired = T)
-wilcox.test( sumStats[sumStats$condition == "HP" & sumStats$cbal == 1, "muWTW"],
+wTest1 = wilcox.test( sumStats[sumStats$condition == "HP" & sumStats$cbal == 1, "muWTW"],
              sumStats[sumStats$condition == "LP" & sumStats$cbal == 1, "muWTW"], paired = T)
-wilcox.test( sumStats[sumStats$condition == "HP" & sumStats$cbal == 2, "muWTW"],
+wTest2 = wilcox.test( sumStats[sumStats$condition == "HP" & sumStats$cbal == 2, "muWTW"],
              sumStats[sumStats$condition == "LP" & sumStats$cbal == 2, "muWTW"], paired = T)
-
+pData = data.frame(
+  label = sprintf('p = %.3f', c(wTest1$p.value, wTest2$p.value)),
+  cbal = c(1, 2)
+)
 data.frame(muWTWHP = sumStats$muWTW[sumStats$condition == 'HP'],
            muWTWLP = sumStats$muWTW[sumStats$condition == 'LP'],
            cbal = sumStats$cbal[sumStats$condition == "HP"]) %>%
   ggplot(aes(muWTWLP, muWTWHP)) +
   geom_point(color = themeColor, size = 5, shape = 21, fill = '#9ecae1', stroke =1) +
   geom_abline(slope = 1, intercept = 0) + facet_grid(~cbal) + 
-  annotate("text", x = 15, y = 3, label = sprintf('%.3f', wTest$p.value)) +
+  geom_text(data = pData, aes(label = label), x = 15, y = 3, inherit.aes = F) +
   xlab("LP muAUC / (s)") + ylab("HP muAUC / (s)") + 
     myTheme + xlim(c(-1,31)) + ylim(c(-1,31)) 
-ggsave("figures/MFPlot/muWTW_comparison.eps", width = 3, height = 4)
+ggsave("figures/MFPlot/muWTW_comparison.eps", width = 4, height = 3)
+ggsave("figures/MFPlot/muWTW_comparison.eps", width = 4, height = 3)
 
 
