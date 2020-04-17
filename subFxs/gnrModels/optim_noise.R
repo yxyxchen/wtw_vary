@@ -19,16 +19,15 @@
 # Qwaits_ : [20/40 x nTrial num] value of waiting at each second in each trial
 # V0_ : [nTrialx1 num] value of entering a pre-trial iti, namely t = 0
 
-RL2 = function(paras, condition_, scheduledWait_, scheduledReward_, normResults){
+optim_noise = function(paras, condition_, scheduledWait_,  scheduledReward_, normResults){
   # default settings 
   iti = 2
   
   # normative analysis 
-  optimRewardRates = normResults$optimRewardRates
-  optimWaitThresholds = normResults$optimWaitThresholds
+  subjectValues_ = normResults$subjectValues 
   
   # learning parameters
-  alphaR = paras[1]; alphaU = paras[2];tau = paras[3];  prior = paras[4]; beta = paras[5];
+  tau = paras[1]
   
   # num of trials
   nTrial = length(scheduledWait_) 
@@ -38,15 +37,10 @@ RL2 = function(paras, condition_, scheduledWait_, scheduledReward_, normResults)
   delayMax = max(delayMaxs)
     
   # initialize action values 
-  V0 = 0 # state value for t = 0
-  rewardRate = mean(unlist(optimRewardRates))
   tWaits = seq(iti, delayMax + iti, by = stepSec) # decision points 
   tMax = max(tWaits) #  time point for the last decision point
-  Qwaits = -0.1 * (tWaits) + prior + V0 # value of waiting at each decision points
   
   # initialize output variables
-  Qwaits_ = matrix(NA, length(tWaits), nTrial); Qwaits_[,1] = Qwaits 
-  V0_ = vector(length = nTrial); V0_[1] = V0
   trialEarnings_ = rep(0, nTrial)
   timeWaited_ = rep(0, nTrial)
   sellTime_ = rep(0, nTrial)
@@ -58,7 +52,10 @@ RL2 = function(paras, condition_, scheduledWait_, scheduledReward_, normResults)
   for(tIdx in 1 : nTrial) {
     # current scheduledWait 
     scheduledWait = scheduledWait_[tIdx]
-    scheduledReward = scheduledReward_[tIdx]
+    scheduledReward =  scheduledReward_[tIdx]
+    subjectValues = subjectValues_[[condition_[tIdx]]]
+    thisDelayMax = ifelse(condition_[tIdx] == "HP", delayMaxs[1], delayMaxs[2])
+    subjectValues = subjectValues[seq(0, thisDelayMax , by = 0.1) %in% seq(0, thisDelayMax, by = stepSec)]
     
     # sample at a temporal resolution of 1 sec until a trial ends
     t = 0
@@ -66,7 +63,7 @@ RL2 = function(paras, condition_, scheduledWait_, scheduledReward_, normResults)
       # take actions after the iti
       if(t >= iti){
         # decide whether to wait or quit
-        pWait =  1 / sum(1  + exp((V0 - Qwaits[tWaits == t])* tau))
+        pWait =  1 / sum(1  + exp((0 - subjectValues[tWaits == t])* tau))
         action = ifelse(runif(1) < pWait, 'wait', 'quit')
         
         # if a reward occurs and the agent is still waiting, the agent gets the reward
@@ -92,33 +89,6 @@ RL2 = function(paras, condition_, scheduledWait_, scheduledReward_, normResults)
         }
       }
       t = t + stepSec
-    }
-    
-    # when the trial endes, update value functions for all time points before T in the trial
-    if(tIdx < nTrial){
-      # determine learning rate
-      if(trialEarnings > 0){
-        alpha = alphaR
-      }else{
-        alpha = alphaU
-      }
-      
-      # calculate expected returns for t >= 2
-      Gts = trialEarnings - rewardRate * (T - tWaits) + V0
-      # only update value functions before time t = T
-      updateFilter = tWaits <= T 
-      # update Qwaits
-      Qwaits[updateFilter] = Qwaits[updateFilter] + alpha * (Gts[updateFilter] - Qwaits[updateFilter])
-      
-      # calculate expected returns for t == 0 and update V0
-      Gt =  trialEarnings - rewardRate * T + V0
-      delta0 = Gt - V0
-      V0 = V0 + alpha * delta0
-      rewardRate = rewardRate + beta * delta0
-      
-      # record updated values
-      Qwaits_[,tIdx + 1] = Qwaits
-      V0_[tIdx + 1] = V0
     }# end of the loop within a trial 
   } # end of the loop over trials
   
@@ -129,9 +99,7 @@ RL2 = function(paras, condition_, scheduledWait_, scheduledReward_, normResults)
     "trialEarnings" = trialEarnings_, 
     "timeWaited" = timeWaited_,
     "sellTime" = sellTime_,
-    "scheduledWait" = scheduledWait_,
-    "Qwaits_" = Qwaits_, 
-    "V0_" = V0_
+    "scheduledWait" = scheduledWait_
   )
   return(outputs)
 }

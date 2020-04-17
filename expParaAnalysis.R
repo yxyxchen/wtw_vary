@@ -6,6 +6,14 @@ source("subFxs/loadFxs.R") # load blockData and expPara
 source("subFxs/helpFxs.R") # getparaNames
 source("subFxs/analysisFxs.R") # plotCorrelation and getCorrelation
 source('MFAnalysis.R')
+library(latex2exp)
+
+# load empirical data 
+allData = loadAllData()
+hdrData = allData$hdrData 
+trialData = allData$trialData       
+ids = hdrData$id[hdrData$stress == "no_stress"]
+nSub = length(ids)
 
 # model Name
 modelName = "QL2"
@@ -19,7 +27,8 @@ dir.create(saveDir)
 
 # 
 MFResults = MFAnalysis(isTrct = T)
-sumStats = MFResults[['sumStats']]
+blockStats = MFResults[['blockStats']]
+
 # load expPara
 paraNames = getParaNames(modelName)
 nPara = length(paraNames)
@@ -28,51 +37,40 @@ dirName = sprintf("%s/%s",parentDir, modelName)
 expPara = loadExpPara(paraNames, dirName)
 passCheck = checkFit(paraNames, expPara)
 
-
 # plot hist 
-# paraNames = c("LR", "LP", expression(tau), expression(gamma), "P")
-# paraNames = c("LR", "LP", expression(tau), "P")
-paraNames = paraNames
-expPara$condition = sumStats$condition[1 : nrow(expPara)]
-expPara %>% filter(passCheck ) %>% select(c(paraNames, "condition")) %>%
-  gather(-c("condition"), key = "para", value = "value") %>%
-  mutate(para = factor(para, levels = paraNames, labels = paraNames ))%>%
-  ggplot(aes(value)) + geom_histogram(bins = 8) +
-  facet_grid(condition ~ para, scales = "free", labeller = label_parsed) + 
+paraLabels = c(expression(alpha_R), expression(alpha_U), expression(tau), expression(gamma), expression("eta"))
+expPara %>% filter(passCheck ) %>% select(c(paraNames)) %>%
+  gather(key = "para", value = "value") %>%
+  mutate(para = factor(para, levels = paraNames, labels = paraLabels ))%>%
+  ggplot(aes(value)) + geom_histogram(bins = 12) +
+  facet_grid( ~ para, scales = "free", labeller = label_parsed) + 
   myTheme + xlab(" ") + ylab(" ")
 fileName = sprintf("%s/%s/hist.pdf", "figures/expParaAnalysis", modelName)
 ggsave(fileName, width = 8, height = 4)
 
-# summary stats for expPara
-expPara %>% filter(passCheck) %>% select(c(paraNames)) %>%
-  gather(key = "para", value = "value") %>%
-  mutate(para = factor(para, levels = paraNames, labels = paraNames ))%>% 
-  group_by(para) %>% summarise(mu = mean(value), median = median(value))
+# optimism bias
+logOdds = log(expPara$alphaR / expPara$alphaU)
+wilcoxResults = wilcox.test(logOdds)
 
 
 # optimism bias
-wilcoxResults = wilcox.test(expPara$phi_pos[passCheck] - expPara$phi_neg[passCheck])
-# we use the 1.5 x the IQR for the larger of the two values 
-# (phi_pos, phi_neg) as the criteria 
-# for exclude outliers
-junk = expPara %>% filter(passCheck) %>%
-  select(c("phi_pos", "phi_neg")) %>%
-  gather("paraName", "paraValue") %>%
-  group_by(paraName) %>% 
-  summarise(qLower = quantile(paraValue)[1],
-            qUpper = quantile(paraValue)[3],
-            IQR = qUpper - qLower,
-            limLower = qLower - IQR * 1.5,
-            limUpper = qUpper + IQR * 1.5)
-limLower = max(0, min(junk$limLower))
-limUpper = max(junk$limUpper)
-# optimism bias
-expPara %>% filter(passCheck) %>% 
-  ggplot(aes(phi_neg, phi_pos)) +
-  geom_point(color = themeColor,  fill = "#9ecae1", shape= 21, stroke = 1, size = 5) + 
-  xlim(c(limLower, limUpper)) + ylim(c(limLower, limUpper)) + 
-  geom_abline(slope = 1, intercept = 0) + 
-  annotate("text", x = 0.015, y = 0.015, label = sprintf("p = %.3f", wilcoxResults$p.value)) +
-  myTheme
+expPara %>% filter(passCheck) %>%
+  ggplot(aes(log(alphaR/alphaU))) +
+  geom_histogram(bins = 8) +
+  myTheme + 
+  xlab(TeX('$log(\\alpha_r/\\alpha_u)$')) +
+  ylab("Count") +
+  geom_vline(aes(xintercept = 0), color = "red", linetype = 2)
 ggsave("figures/expParaAnalysis/optimism.eps", width = 6, height = 6)
+ggsave("figures/expParaAnalysis/optimism.png", width = 6, height = 6)
+
+# temproal discounting
+wilcoxResults = wilcox.test(expPara$gamma - 1)
+expPara %>% filter(passCheck) %>% ggplot(aes(gamma)) +
+  geom_histogram(bins = 8) +
+  myTheme  + 
+  xlab(TeX('$\\gamma$')) +
+  ylab("Count") + xlim(c(0.65, 1.05))
+ggsave("figures/expParaAnalysis/discounting.eps", width = 4, height = 4)
+ggsave("figures/expParaAnalysis/discounting.png", width = 4, height = 4)
 

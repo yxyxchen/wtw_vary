@@ -12,15 +12,17 @@ expModelFit = function(modelName, isFirstFit){
   source("subFxs/loadFxs.R")
   source("subFxs/helpFxs.R")
   source('subFxs/modelFitGroup.R')
+  source("expSchematics.R")
   
   # prepare inputs
   allData = loadAllData()
   hdrData = allData$hdrData
+  ids = unique(hdrData$id)
   trialData = allData$trialData
   outputDir = sprintf("genData/expModelFit/%s", modelName)
   config = list(
     nChain = 4,
-    nIter = 100,
+    nIter = 8000,
     adapt_delta = 0.99,
     max_treedepth = 11,
     warningFile = sprintf("stanWarnings/exp_%s.txt", modelName)
@@ -49,6 +51,6 @@ expModelFit = function(modelName, isFirstFit){
   }
   
   # fit the model for all participants
-  modelFitGroup(modelName, trialData, config, outputDir)
+  modelFitGroup(modelName, trialData, config, outputDir, T)
 }
 

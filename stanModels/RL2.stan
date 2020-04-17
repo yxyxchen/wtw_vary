@@ -1,181 +1,173 @@
 data {
   // experiment parameters
-  real stepSec;// duration of one step
-  int nStepMax; // max num of steps in one trial
-  real iti;// iti duration, unit = second
+  real stepSec;// duration between two decision points
+  real iti;// iti duration
+  int  nDecPoint; // number of possible decision points
+  real tWaits[nDecPoint]; // time for each decision point 
   
-  // initialization parameters
-  real reRateIni; 
+  // initial value for reward rate
+  real rewardRate_ini; 
   
-  // experiment data
+  // empirical data
   int N; // number of trials
-  int Rs[N]; // reward in each trial
-  int Ts[N]; // terminal state in each trial
+  int Rs[N]; // payoff in each trial
+  real Ts[N]; // a trial ends at t == T
+  int lastDecPoints[N];// at which decision point each trial ends
 }
 transformed data {
-  // total number of steps in all trials
-  // Notiably, T - 1 gives the number of steps in a trial
-  int nStepTotal = sum(Ts) - N;
-  
-  // the number of waiting steps in each trial
-  int nWait_s[N];
-  for(i in 1 : N){
-    // if R > 0, the agent always chooses to wait.
-    // while if R = 0, the agent quits in the last step
-    if(Rs[i] != 0){
-      nWait_s[i] = Ts[i] - 1;
-    }else{
-      nWait_s[i] = Ts[i] - 2;
-    }
-  }
+  // total number of decision points in all trials
+  int nDecPointTotal = sum(lastDecPoints);
 }
 parameters {
   // parameters:
-  // phi_pos : action values learning rate for postive outcomes
-  // phi_neg : action values leanring rate for negative outcomes
-  // beta : reward rate learning rate
-  // tau : action consistency, namely soft-max temperature 
-  // prior : prior belief parameter
+  // alpha : learning rate
+  // tau : action consistency, namely the soft-max temperature parameter
+  // prior: prior belief parameter
+  // beta : learning rate for the task reward rate
   
-  // Additionally, since phi_pos and phi_neg are correlated
-  // we reparameterize phi_neg as its ratio relative to phi_pos
-  // since phi_pos, phi_neg, and beta are correlated
-  // we reparameterize phi_nega and beta as ratios relative to phi_pos
-  real<lower = -0.5, upper = 0.5> raw_phi_pos; 
-  real<lower = -0.5, upper = 0.5> raw_phi_neg_ratio; 
-  real<lower = -0.5, upper = 0.5> raw_beta_ratio; 
+  // for computational efficiency,we sample raw parameters from unif(-0.5, 0.5)
+  // which are later transformed into actual parameters
+  real<lower = -0.5, upper = 0.5> raw_alphaR;
+  real<lower = -0.5, upper = 0.5> raw_alphaU_alphaR;
   real<lower = -0.5, upper = 0.5> raw_tau;
   real<lower = -0.5, upper = 0.5> raw_prior;
+  real<lower = -0.5, upper = 0.5> raw_beta_alphaR;
 }
 transformed parameters{
-  // scale raw parameters 
-  real phi_pos = (raw_phi_pos + 0.5) * 0.3; // phi_pos ~ unif(0, 0.3)
-  real phi_neg_ratio = (raw_phi_neg_ratio + 0.5) * 5; // np_ratio ~ unif(0, 5)
-  real beta_ratio =  (raw_beta_ratio + 0.5) * 1; // bp_ratio ~ unif(0, 1)
-  real phi_neg = min([phi_pos * phi_neg_ratio, 1]');// convert phi_neg_ratio to phi_neg
-  real beta = phi_pos * beta_ratio; // convert beta_ratio to beta
+  // scale raw parameters into real parameters
+  real alphaR = (raw_alphaR + 0.5) * 0.3; // alpha ~ unif(0, 0.3)
+  real alphaU_alphaR = (raw_alphaU_alphaR + 0.5) * 5; // the ratio between alphaU and alphaR
+  real alphaU =  min([alphaR * alphaU_alphaR, 1]');// alphaU
   real tau = (raw_tau + 0.5) * 21.9 + 0.1; // tau ~ unif(0.1, 22)
-  real prior = (raw_prior + 0.5) * 65; // prior ~ unif(0, 65)
+  real prior = (raw_prior + 0.5) * 6.5; // prior ~ unif(0, 6.5)
+  real beta_alphaR = (raw_beta_alphaR + 0.5) * 1; // the ratio between beta and alphaR
+  real beta = beta_alphaR * alphaR; // beta ~ unif(0, 0.3)
   
-  // declare variables
-  real Viti; // value of the ITI state
-  real reRate; // reward rate
-  vector[nStepMax] Qwaits; // action value of waiting in each step after the ITI state
-  vector[N] Viti_ = rep_vector(0, N); // recording Viti
-  vector[N] reRate_ = rep_vector(0, N);// recording reRate
-  matrix[nStepMax, N] Qwaits_ = rep_matrix(0, nStepMax, N); // recording Qwaits
-  real rwdSignal;  // // the reward signal for updating action values at the end of each trial 
-  real itiDelta; // prediction error for the iti state
-  real currentPhi; // the learning rate for this trial 
+  // declare variables 
+  // // state value of t = 0
+  real V0; 
+  // // action value of waiting in each decision points 
+  vector[nDecPoint] Qwaits; 
+  // // variables to record action values 
+  matrix[nDecPoint, N] Qwaits_ = rep_matrix(0, nDecPoint, N);
+  vector[N] V0_ = rep_vector(0, N);
+  // // expected return 
+  real G0;
+  // // prediction error
+  real delta0;
+  // reward rate 
+  real rewardRate;
   
-  // initialize variables
-  Viti = 0;
-  reRate = reRateIni;
+  
+  // initialize action values 
+  //// the initial value of t = 0 
+  V0 = 0; 
+  rewardRate = rewardRate_ini;
   // the initial waiting value delines with elapsed time 
-  // and the prior parameter determines at which step it falls below Viti
-  for(i in 1 : nStepMax){
-    Qwaits[i] = (prior - i) * 0.1 + Viti;
+  // and the prior parameter determines at which step it falls below V0
+  for(i in 1 : nDecPoint){
+    Qwaits[i] = - i * 0.1 + prior + V0;
   }
   
   // record initial action values
-  Viti_[1] = Viti;
-  reRate_[1] = reRate;
   Qwaits_[,1] = Qwaits;
-  
+  V0_[1] = V0;
+ 
   //loop over trials
-  for(tIdx in 1 : (N -1)){
-    int T = Ts[tIdx]; // current terminal state
-    int R = Rs[tIdx]; // current reward
+  for(tIdx in 1 : (N - 1)){
+    real T = Ts[tIdx]; // this trial ends on t = T
+    int R = Rs[tIdx]; // payoff in this trial
+    int lastDecPoint = lastDecPoints[tIdx]; // last decision point in this trial
     
-    //calculate the reward signal for updating action value 
-    // which equals R plus the discounted value of the successor state. Noticably, 
-    // the successor state at the end of trial is always the iti state before the next trial
-    rwdSignal = R + Viti;
-
-    // determine the current learning rate given the outcome valence 
+    // determine alpha
+    real alpha;
     if(R > 0){
-      currentPhi = phi_pos;
+      alpha = alphaR;
     }else{
-      currentPhi = phi_neg;
+      alpha = alphaU;
     }
     
-    // update Qwaits, Viti and reRate towards the net reward signals,
-    for(t in 1 : nWait_s[tIdx]) {
-      real netRwdsignal = rwdSignal - reRate * (T - t);
-      Qwaits[t] = Qwaits[t] + currentPhi * (netRwdsignal - Qwaits[t]);
+    // update Qwaits towards the discounted returns
+    for(i in 1 : lastDecPoint){
+      real t = tWaits[i]; // time for this decision points 
+      real Gt = R - rewardRate * (T - t) + V0;
+      Qwaits[i] = Qwaits[i] + alpha * (Gt - Qwaits[i]);
     }
-    itiDelta = rwdSignal - (T - 1 + iti / stepSec) * reRate - Viti;
-    Viti = Viti + currentPhi * itiDelta;
-    reRate = reRate + beta * itiDelta;
-
+    
+    // update V0 towards the discounted returns 
+    G0 = R - rewardRate * T + V0;
+    delta0 = G0 - V0;
+    V0 = V0 + alpha * delta0;
+    
+    // update reward rate 
+    rewardRate = rewardRate + beta * delta0;
     
     // save action values
     Qwaits_[,tIdx+1] = Qwaits;
-    Viti_[tIdx+1] = Viti;
-    reRate_[tIdx + 1] = reRate;
+    V0_[tIdx+1] = V0;
   }
 }
 model {
   // delcare variables 
   int action; 
   vector[2] actionValues; 
-  
   // distributions for raw parameters
-  raw_phi_pos ~ uniform(-0.5, 0.5);
-  raw_phi_neg_ratio ~ uniform(-0.5, 0.5);
-  raw_beta_ratio ~ uniform(-0.5, 0.5);
+  raw_alphaR ~ uniform(-0.5, 0.5);
+  raw_alphaU_alphaR ~ uniform(-0.5, 0.5);
   raw_tau ~ uniform(-0.5, 0.5);
   raw_prior ~ uniform(-0.5, 0.5);
+  raw_beta_alphaR ~ uniform(-0.5, 0.5);
   
   // loop over trials
   for(tIdx in 1 : N){
-    int T = Ts[tIdx]; // current terminal state
-    int R = Rs[tIdx]; // current reward
-    // loop over steps
-    for(t in 1 : (T - 1)){
-      // determine the action
-      // the agent wait in every steps in rewarded trials
-      // and wait except for the last step in non-rewarded trials
-      if(R == 0 && t == (T-1)){
-        action = 2; // proceed to the next ITI
+    real T = Ts[tIdx]; // this trial ends on t = T
+    int R = Rs[tIdx]; // payoff in this trial
+    int lastDecPoint = lastDecPoints[tIdx]; // last decision point in this trial
+    
+    // loop over decision points
+    for(i in 1 : lastDecPoint){
+      // the agent wait in every decision point in rewarded trials
+      // and wait except for the last decision point in non-rewarded trials
+      if(R == 0 && i == lastDecPoint){
+        action = 2; // quit
       }else{
         action = 1; // wait
       }
       // calculate the likelihood using the soft-max function
-      actionValues[1] = Qwaits_[t, tIdx] * tau;
-      actionValues[2] = (Viti_[tIdx] - reRate_[tIdx]) * tau;
+      actionValues[1] = Qwaits_[i, tIdx] * tau;
+      actionValues[2] = V0_[tIdx] * tau;
       target += categorical_logit_lpmf(action | actionValues);
     } 
   }
 }
 generated quantities {
- // generate action-wise log likelihood and total log likelihood
- 
  // initialize variables
   vector[2] actionValues;
   int action;
-  vector[nStepTotal] log_lik = rep_vector(0, nStepTotal);
-  real LL_all; // total log likelihood
+  vector[nDecPointTotal] log_lik = rep_vector(0, nDecPointTotal); // trial-wise log likelihood 
+  real totalLL; // total log likelihood
   int no = 1; // action index
   
   // loop over trials
   for(tIdx in 1 : N){
-    int T = Ts[tIdx]; // current terminal state
-    int R = Rs[tIdx]; // current reward
-    // loop over steps
-    for(t in 1 : (T - 1)){
-      if(R == 0 && t == (T-1)){
-        action = 2; // proceed to the next ITI
+    real T = Ts[tIdx]; // this trial ends on t = T
+    int R = Rs[tIdx]; // payoff in this trial
+    int lastDecPoint = lastDecPoints[tIdx]; // last decision point in this trial
+    
+    // loop over decision points
+    for(i in 1 : lastDecPoint){
+      if(R == 0 && i == lastDecPoint){
+        action = 2; // quit
       }else{
         action = 1; // wait
       }
       // calculate the likelihood using the soft-max function
-      actionValues[1] = Qwaits_[t, tIdx] * tau;
-      actionValues[2] = (Viti_[tIdx] - reRate_[tIdx]) * tau;
+      actionValues[1] = Qwaits_[i, tIdx] * tau;
+      actionValues[2] = V0_[tIdx] * tau;
       log_lik[no] =categorical_logit_lpmf(action | actionValues);
       no = no + 1;
     }
   }
   // calculate total log likelihood
-  LL_all =sum(log_lik);
+  totalLL =sum(log_lik);
 }

@@ -33,12 +33,13 @@ trialPlots <- function(thisTrialData) {
 kmsc <- function(thisTrialData, tMax, plotKMSC=FALSE, grid) {
   library(survival)
   # ensure timeWaited = scheduledWait on rewarded trials
-  thisTrialData = within(thisTrialData, {timeWaited[trialEarnings!= 0] = scheduledWait[trialEarnings!= 0]})
+  thisTrialData$timeWaited[thisTrialData$trialEarnings!= 0] =
+    thisTrialData$scheduledWait[thisTrialData$trialEarnings!= 0]
+  
   # fit a kaplan-meier survival curve
-  kmfit = with(thisTrialData,{
-    survfit(Surv(timeWaited, (trialEarnings == 0), type='right') ~ 1, 
+  kmfit = survfit(Surv(thisTrialData$timeWaited, (thisTrialData$trialEarnings == 0), type='right') ~ 1, 
             type='kaplan-meier', conf.type='none', start.time=0, se.fit=FALSE)
-  })
+  
   # extract elements of the survival curve object 
   kmT = kmfit$time # time value 
   kmF = kmfit$surv # function value
@@ -82,7 +83,8 @@ kmsc <- function(thisTrialData, tMax, plotKMSC=FALSE, grid) {
 # calculate willingness to wait (WTW) time-series
 wtwTS <- function(thisTrialData, tGrid, wtwCeiling, plotWTW = F) {
   # ensure timeWaited = scheduledWait on rewarded trials
-  thisTrialData = within(thisTrialData, {timeWaited[trialEarnings!= 0] = scheduledWait[trialEarnings!= 0]})
+  thisTrialData$timeWaited[thisTrialData$trialEarnings!= 0] =
+    thisTrialData$scheduledWait[thisTrialData$trialEarnings!= 0]
   
   # initialize the per-trial estimate of WTW
   nTrial = length(thisTrialData$trialEarnings)
@@ -260,7 +262,8 @@ getPartCorrelation = function(data){
 # integrate stacked data from several blocks 
 block2session = function(thisTrialData){
   nBlock = length(unique(thisTrialData$blockNum))
-  nTrials = sapply(1:nBlock, function(i) sum(thisTrialData$blockNum == i))
+  blockNums = unique(thisTrialData$blockNum)
+  nTrials = sapply(1:nBlock, function(i) sum(thisTrialData$blockNum == blockNums[i]))
   # accumulated trials 
   ac_nTrials = c(0, cumsum(head(nTrials, -1)))
   # accumulated task durations

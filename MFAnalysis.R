@@ -3,18 +3,18 @@
 # inputs:
 # isTrct : logical variable determining whether the last portion in each block is truncated 
 
-# outputs (summarised stats for each participant and each condition, 42 * 2):
+# outputs (summarised stats for each participant and each condition, 40 * 4):
 # sumStats = {
-  # id : [84x1 id]
-  # condition : [84x1 fac]
-  # nExcl : [84x1 int] # total number of excluded trials 
-  # muWTWs : [84x1 num] # average willingness to wait (WTW), measured by area under the Kaplan-Meier survival curve
-  # stdWTWs : [84x1 num] # standard deviation of WTW, measured in Kaplan-Meier survival analysis
-  # totalEarnings_s :  [84x1 num] 
+  # id : [160x1 id]
+  # condition : [160x1 fac]
+  # nExcl : [160x1 int] # total number of excluded trials 
+  # muWTWs : [160x1 num] # average willingness to wait (WTW), measured by area under the Kaplan-Meier survival curve
+  # stdWTWs : [160x1 num] # standard deviation of WTW, measured in Kaplan-Meier survival analysis
+  # totalEarnings_s :  [160x1 num] 
 # }
-# timeWTW_ : list(84x1) # wtw timecourse, each element is a vector
-# trialWTW_ : list(84x1) # trial-wise WTW, each element is a vector
-# survCurve_ : list(84x1) # Kaplan-Meier survival curve, each element is a vector
+# timeWTW_ : list(160x1) # wtw timecourse, each element is a vector
+# trialWTW_ : list(160x1) # trial-wise WTW, each element is a vector
+# survCurve_ : list(160x1) # Kaplan-Meier survival curve, each element is a vector
 
 MFAnalysis = function(isTrct){
   # load libraries
@@ -35,10 +35,11 @@ MFAnalysis = function(isTrct){
   allData = loadAllData()
   hdrData = allData$hdrData           
   trialData = allData$trialData       
-  ids = hdrData$id 
+  ids = unique(hdrData$id) 
   nSub = length(ids)                    # n
   cat('Analyzing data for',nSub,'subjects.\n')
-
+  
+################### block stats ############################
   # initialize output variables 
   nExcls = numeric(length = nSub * nBlock)
   muWTWs = numeric(length = nSub * nBlock) 
@@ -61,7 +62,7 @@ MFAnalysis = function(isTrct){
       # extract (and truncate) trialData for this block
       thisTrialData = thisTrialData %>% filter(thisTrialData$blockNum == bkIdx)
       if(isTrct){
-        trctLine = blockSec - max(tMaxs)
+        trctLine = blockSec - max(delayMaxs)
         # truncate trials completed after tractline in each block
         nExcls[noIdx] = sum(thisTrialData$trialStartTime > trctLine)
         thisTrialData = thisTrialData %>% filter(trialStartTime <=  trctLine )
@@ -77,23 +78,24 @@ MFAnalysis = function(isTrct){
       totalEarnings_s[noIdx] =  sum(thisTrialData$trialEarnings)
       
       # survival analysis
-      kmscResults = kmsc(thisTrialData, min(tMaxs), F, kmGrid)
+      kmscResults = kmsc(thisTrialData, min(delayMaxs), F, kmGrid)
       
       # 
       muWTWs[noIdx] = kmscResults[['auc']]
-      survCurve_[[noIdx]] = kmscResults$kmOnGrid
       stdWTWs[[noIdx]] = kmscResults$stdWTW
+      survCurve_[[noIdx]] = kmscResults$kmOnGrid
       
       # WTW timecourse
-      wtwtsResults = wtwTS(thisTrialData, tGrid, min(tMaxs), F)
+      wtwtsResults = wtwTS(thisTrialData, tGrid, min(delayMaxs), F)
       timeWTW_[[noIdx]] = wtwtsResults$timeWTW
       trialWTW_[[noIdx]] = wtwtsResults$trialWTW
     }
       
   }
   # return outputs
-  sumStats = data.frame(
+  blockStats = data.frame(
     id = rep(ids, each = nBlock),
+    blockNum = rep(1 : nBlock, nSub),
     condition = conditions,
     cbal = rep(hdrData$cbal, each = nBlock),
     nExcl = nExcls,
@@ -102,7 +104,7 @@ MFAnalysis = function(isTrct){
     stdWTW = stdWTWs
   )
   outputs = list(
-    sumStats = sumStats,
+    blockStats = blockStats,
     survCurve_ = survCurve_,
     trialWTW_ = trialWTW_,
     timeWTW_ = timeWTW_ 

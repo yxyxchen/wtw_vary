@@ -7,16 +7,17 @@ expModelCmp = function(){
   source("subFxs/loadFxs.R")
   source("subFxs/plotThemes.R")
   load("expParas.RData")
+  dir.create("figures/expModelCmp")
   
   # load data
   allData = loadAllData()
   hdrData = allData$hdrData           
   trialData = allData$trialData       
-  ids = hdrData$id    
+  ids = hdrData$id             
   nSub = length(ids) 
   
   # check fit
-  modelNames = c("QL1", "QL2", "RL1", "RL2")
+  modelNames = c("QL1", "QL2", "RL1", "RL2", "optim_noise", "optim_noise_bias")
   nModel = length(modelNames)
   passCheck_ = matrix(NA, nrow = nSub, ncol = nModel)
   for(i in 1 : nModel){
@@ -27,72 +28,34 @@ expModelCmp = function(){
   }
   
   # extract leave-one-out results
-  logEvidence_ = matrix(NA, nSub, nModel)
-  pWaic_ = matrix(NA, nSub, nModel)
+  waic_ = matrix(NA, nSub, nModel)
   for(m in 1 : nModel){
     modelName = modelNames[m]
     for(sIdx in 1 : nSub ){
       id = ids[sIdx]
       fileName = sprintf("genData/expModelFit/%s/s%s_waic.RData", modelName, id)
       load(fileName)
-      logEvidence_[sIdx, m] = LOO$elpd_loo 
-      pWaic_[sIdx, m] = LOO$p_loo
+      waic_[sIdx, m] = WAIC$waic
     }
   }
   
-  outputTable = cbind(logEvidence_, passCheck_)
-  write.table(outputTable, "genData/logEvidence.csv", col.names = F, sep = ",")
-  # compare model with one learning rates and two seprate learning rates
-  library("ggpubr")
-  bestNums = sapply(1 : 2, function(i) sum(apply(
-    logEvidence_[passCheck_[,1] & passCheck_[,2],1:2],MARGIN = 1, FUN = function(x) which.max(x) == i)))
-  data.frame(model = modelNames[1:2], bestNums = bestNums) %>%
-    ggplot(aes(x="", y=bestNums, fill=model)) +
-    geom_bar(width = 1, stat = "identity") + 
-    coord_polar("y", start=0) + ylab("") + xlab("") +
-    ggtitle(sprintf("Best described (n = %d)", sum(bestNums)))+ 
-    myTheme
-  dir.create("figures/expModelCmp")
-  ggsave("figures/expModelCmp/loo_QL1_QL2.eps", width = 4, height = 3.5)
+  # 
+  outputTable = cbind(waic_, passCheck_)
+  write.table(outputTable, "genData/waic.csv", col.names = F, sep = ",")
   
-  bestNums = sapply(1 : 2, function(i) sum(apply(
-    logEvidence_[passCheck_[,3] & passCheck_[,4],3:4],MARGIN = 1, FUN = function(x) which.max(x) == i)))
-  data.frame(model = modelNames[3:4], bestNums = bestNums) %>%
-    ggplot(aes(x="", y=bestNums, fill=model)) +
-    geom_bar(width = 1, stat = "identity") + 
-    coord_polar("y", start=0) + ylab("") + xlab("") +
-    ggtitle(sprintf("Best described (n = %d)", sum(bestNums)))+ 
-    myTheme
-  dir.create("figures/expModelCmp")
-  ggsave("figures/expModelCmp/loo_RL1_RL2.eps", width = 4, height = 3.5)
-  
-  # compare RL2 and QL2
-  bestNums = sapply(1 : 2, function(i) sum(apply(
-    logEvidence_[passCheck_[,2] & passCheck_[,4],c(2,4)],MARGIN = 1, FUN = function(x) which.max(x) == i)))
-  data.frame(model = modelNames[c(2,4)], bestNums = bestNums) %>%
-    ggplot(aes(x="", y=bestNums, fill=model)) +
-    geom_bar(width = 1, stat = "identity") + 
-    coord_polar("y", start=0) + ylab("") + xlab("") +
-    ggtitle(sprintf("Best described (n = %d)", sum(bestNums)))+ 
-    myTheme
-  dir.create("figures/expModelCmp")
-  ggsave("figures/expModelCmp/loo_QL2_RL2.eps", width = 4, height = 3.5)
-  
-  # sumStats
-  MFResults = MFAnalysis(isTrct = T)
-  sumStats = MFResults[['sumStats']]
-  # save outputs 
-  outputs = data.frame(
-    logEvidence_,
-    passCheck1 = passCheck_[,1],
-    passCheck2 = passCheck_[,2],
-    passCheck3 = passCheck_[,3],
-    passCheck4 = passCheck_[,4],
-    muWTW = sumStats$muWTW)
-  dir.create("genData/expModelCmp")
-  write.table(file = "genData/expModelCmp/loo.csv", outputs,
-              sep = ",", col.names = F, row.names = F)
-  
+  # plot WAIC
+  waic_[!passCheck_] = NA
+  data.frame(
+    modelName = c("Q1", "Q2", "R1", "R2", "ON", "ONB"),
+    mu = apply(waic_, 2, mean, na.rm = T),
+    se = apply(waic_, 2, sd, na.rm = T) / sqrt(apply(waic_, 2, function(x) sum(!is.na(x))))
+  ) %>% mutate(modelName = factor(modelName, levels = (modelName[order(-mu)]))) %>%
+    ggplot(aes(modelName, mu)) + geom_bar(stat = "identity") +
+    geom_errorbar(aes(ymin = mu - se, ymax = mu + se), width = 0.4) +
+    myTheme + xlab("") + ylab("WAIC") 
+  fileName = "figures/expModelCmp/cmp.eps"
+  fileName = "figures/expModelCmp/cmp.png"
+  ggsave(filename = fileName,  width = 4, height = 3)
 }
 
 

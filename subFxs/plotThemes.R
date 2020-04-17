@@ -2,9 +2,12 @@ library('ggplot2')
 # 
 themeColor = "#3876AE"
 expName = "Exp.3"
+conditionColors = c("#1b7837", "#762a83")
+conditionColorBacks = c( "#a6dba0", "#c2a5cf")
 # annotations for p values 
 symnum.args <- list(cutpoints = c(0,0.001, 0.01, 0.05, 1),
                     symbols = c("***", "**", "*", "ns"))
+conditionColors = c("#1b7837", "#762a83")
 # plot theme
 # plot theme
 myTheme = theme( panel.grid.major = element_blank(),
